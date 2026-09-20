@@ -106,7 +106,7 @@ Table of runs: date, platforms, questions version, successful/failed, mentioned 
 
 ## 8b. Appearance
 
-Light, Dark, and System are offered as a three-way control in the sidebar (desktop), the compact top bar (phone), the landing and auth navs, and an Appearance card in Settings. The choice is a per-browser convenience stored in localStorage; System follows the device setting. A pre-paint script applies the saved choice so there is no flash. Both themes are built from the same tokens (docs/ARCHITECTURE.md, globals.css).
+Light and Dark are offered as a single icon button (sun or moon showing the theme in effect; a click flips it) in the sidebar (desktop), the compact top bar (phone), and the landing and auth navs, plus two labeled buttons in an Appearance card in Settings. The choice is a per-browser convenience stored in localStorage; until the owner chooses, the app follows the device setting. A pre-paint script applies the saved choice so there is no flash. Both themes are built from the same tokens (docs/ARCHITECTURE.md, globals.css).
 
 ## 9. Responsive behavior
 

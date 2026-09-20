@@ -56,7 +56,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <Card className="gap-2">
           <CardTitle>Appearance</CardTitle>
           <ThemeToggle variant="segmented" />
-          <p className="dt m-0">Saved in this browser only. &ldquo;System&rdquo; follows your device setting.</p>
+          <p className="dt m-0">Saved in this browser only. Until you choose, the app follows your device setting.</p>
         </Card>
 
         <Card className="gap-3">

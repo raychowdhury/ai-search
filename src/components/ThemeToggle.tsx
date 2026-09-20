@@ -1,40 +1,41 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { IconMonitor, IconMoon, IconSun } from "./icons";
+import { IconMoon, IconSun } from "./icons";
 
-export type ThemeChoice = "light" | "dark" | "system";
+export type ThemeChoice = "light" | "dark";
 const KEY = "theme";
 const listeners = new Set<() => void>();
-const ORDER: ThemeChoice[] = ["light", "dark", "system"];
-const LABEL: Record<ThemeChoice, string> = { light: "Light", dark: "Dark", system: "System" };
-const ICON: Record<ThemeChoice, React.ReactNode> = { light: <IconSun />, dark: <IconMoon />, system: <IconMonitor /> };
+const LABEL: Record<ThemeChoice, string> = { light: "Light", dark: "Dark" };
+const ICON: Record<ThemeChoice, React.ReactNode> = { light: <IconSun />, dark: <IconMoon /> };
 
+/** The theme in effect: the saved choice, else the device setting. */
 function readChoice(): ThemeChoice {
   try {
     const v = localStorage.getItem(KEY);
-    return v === "light" || v === "dark" ? v : "system";
+    if (v === "light" || v === "dark") return v;
   } catch {
-    return "system";
+    // fall through to the device setting
   }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
   window.addEventListener("storage", cb);
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", cb);
   return () => {
     listeners.delete(cb);
     window.removeEventListener("storage", cb);
+    media.removeEventListener("change", cb);
   };
 }
 
 export function applyTheme(choice: ThemeChoice): void {
-  const root = document.documentElement;
-  if (choice === "system") delete root.dataset.theme;
-  else root.dataset.theme = choice;
+  document.documentElement.dataset.theme = choice;
   try {
-    if (choice === "system") localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, choice);
+    localStorage.setItem(KEY, choice);
   } catch {
     // Storage may be unavailable (private mode); the attribute still applies for this page.
   }
@@ -42,24 +43,23 @@ export function applyTheme(choice: ThemeChoice): void {
 }
 
 function useChoice(): ThemeChoice {
-  return useSyncExternalStore(subscribe, readChoice, () => "system" as ThemeChoice);
+  return useSyncExternalStore(subscribe, readChoice, () => "light" as ThemeChoice);
 }
 
 /**
- * Appearance control. "icon": one button showing the current choice (sun, moon,
- * monitor) that cycles Light → Dark → System. "segmented": icon + word per option.
- * A per-browser preference; System follows the device setting.
+ * Light or dark. "icon": one button showing the current theme (sun or moon) that
+ * flips it. "segmented": icon + word per option. Saved per browser.
  */
 export function ThemeToggle({ variant = "icon" }: { variant?: "icon" | "segmented" }) {
   const choice = useChoice();
+  const next: ThemeChoice = choice === "dark" ? "light" : "dark";
   if (variant === "icon") {
-    const next = ORDER[(ORDER.indexOf(choice) + 1) % ORDER.length];
     return (
       <button
         type="button"
         onClick={() => applyTheme(next)}
-        aria-label={`Appearance: ${LABEL[choice]}. Switch to ${LABEL[next]}.`}
-        title={`Appearance: ${LABEL[choice]} (click for ${LABEL[next]})`}
+        aria-label={`Switch to ${LABEL[next].toLowerCase()} mode`}
+        title={`Switch to ${LABEL[next].toLowerCase()} mode`}
         className="ico h-9 w-9 cursor-pointer rounded-md hover:text-fg"
       >
         {ICON[choice]}
@@ -68,7 +68,7 @@ export function ThemeToggle({ variant = "icon" }: { variant?: "icon" | "segmente
   }
   return (
     <div role="radiogroup" aria-label="Appearance" className="inline-flex overflow-hidden rounded-md border border-line2 text-[12px]">
-      {ORDER.map((value) => (
+      {(["light", "dark"] as ThemeChoice[]).map((value) => (
         <button
           key={value}
           type="button"
