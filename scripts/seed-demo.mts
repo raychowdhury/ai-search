@@ -12,6 +12,7 @@ import { suggestQuestions } from "@/lib/questions/suggest";
 import { saveQuestionSet, newQuestion, getCurrentQuestionSet } from "@/lib/questions/repo";
 import { createRun, getRun } from "@/lib/collect/runs";
 import { drain } from "@/lib/jobs/worker";
+import { buildFingerprint } from "@/lib/collect/fingerprint";
 import path from "node:path";
 
 const dbPath = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "app.db");
@@ -39,7 +40,7 @@ const business =
     }),
   );
 const qs = getCurrentQuestionSet(db, business.id) ?? saveQuestionSet(db, business.id, suggestQuestions(business).map((t) => newQuestion(t, "suggested")));
-const run = createRun(db, business, qs, ["demo"], "demo");
+const run = createRun(db, business, qs, ["demo"], "demo", { fingerprint: buildFingerprint(["demo"], "demo", false) });
 const jobs = process.env.SEED_NO_DRAIN ? 0 : await drain({ db, log: (m) => console.log(m), extractorEnabled: false });
 const done = getRun(db, run.id)!;
 const { token } = createSession(db, user.id);

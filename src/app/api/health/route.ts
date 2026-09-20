@@ -1,5 +1,5 @@
 import { getDb } from "@/db/client";
-import { adapterStatus } from "@/lib/platforms/registry";
+import { platformHealth } from "@/server/platformHealth";
 import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,8 @@ export async function GET() {
   return Response.json({
     ok: dbOk,
     database: dbOk ? "reachable" : "unreachable",
-    platforms: adapterStatus(),
+    // Key present is not proof the integration works; lastSuccessAt is.
+    platforms: dbOk ? platformHealth(getDb()) : [],
     competitorExtraction: isClaudeExtractorConfigured() ? "configured" : "unavailable",
   });
 }

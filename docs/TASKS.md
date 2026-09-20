@@ -122,6 +122,7 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | M5 | Owner-confirmed facts (phone, hours, business type, booking, priority services) with confirmation timestamp; audit compares phone, respects service-area, flags script-only sites | complete | tests/questions-facts.test.ts |
 | M6 | Verification states, verify_action job, recurrence by scope, export instructions, re-check button | complete | tests/worker.test.ts verification cases; scripts/verify-flow.mts |
 | M7 | Question intents and gating (weekend, same-day), priority services first, measurement fingerprints, legacy-run limitation | complete | tests/compare.test.ts, tests/questions-facts.test.ts |
+| M7c | Optional branded factual-accuracy questions, kept out of discovery totals | pending | Not built; discovery questions never include the business name today |
 | M8 | Business-level pilot events | complete | src/lib/events.ts |
 | M4b | Live verification with real keys | blocked | needs ANTHROPIC_API_KEY, OPENAI_API_KEY, or PERPLEXITY_API_KEY |
 | M7b | Repeatability experiment (bounded cost) | blocked | needs keys and a cost cap decision |

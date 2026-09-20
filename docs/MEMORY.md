@@ -46,6 +46,8 @@ Living record of decisions, assumptions, open questions, limitations, and status
 | 2026-09-20 | Questions carry intents; weekend and same-day questions appear only when confirmed hours or an emergency service support them; priority services first. | Stop measuring demand for things the business does not offer. |
 | 2026-09-20 | Source recommendations reference real citation rows and say we have not checked the owner's presence there. | Synthetic domain references were not navigable evidence. |
 
+| 2026-09-20 | Appearance: light and dark only, chosen with a single sun/moon icon button (labeled buttons in Settings); saved per browser; device setting used until the owner chooses. | Owner asked for a simple icon and two modes; a third "system" state added words and confusion. |
+
 ## Hypotheses from the research (not decisions)
 
 - Pilot: owner-operated plumbing businesses in one U.S. metro with an existing website (any category with reachable owners is acceptable).
