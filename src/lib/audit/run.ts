@@ -88,7 +88,10 @@ export async function runWebsiteAudit(db: Db, business: Business, runId: string 
   }
 
   const findings = runAuditRules(
-    { name: business.name, aliases: business.aliases, city: business.city, region: business.region, services: business.services, websiteUrl: homeRes.finalUrl },
+    {
+      name: business.name, aliases: business.aliases, city: business.city, region: business.region, services: business.services, websiteUrl: homeRes.finalUrl,
+      phone: business.phone, hours: business.hours, businessType: business.businessType,
+    },
     parsed,
   );
   finish(db, auditId, "complete", pageStatuses, findings, null);

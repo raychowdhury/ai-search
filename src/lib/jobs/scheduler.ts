@@ -3,6 +3,8 @@ import { getBusinessById } from "@/lib/business/repo";
 import { getCurrentQuestionSet } from "@/lib/questions/repo";
 import { createRun, latestRun, countActiveRuns } from "@/lib/collect/runs";
 import { configuredLiveAdapters } from "@/lib/platforms/registry";
+import { buildFingerprint } from "@/lib/collect/fingerprint";
+import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
 
 const INTERVALS: Record<string, number> = { weekly: 7 * 24 * 3600 * 1000, monthly: 30 * 24 * 3600 * 1000 };
 
@@ -25,7 +27,7 @@ export function runScheduler(db: Db, now = new Date()): number {
     if (countActiveRuns(db, id) > 0) continue;
     const qs = getCurrentQuestionSet(db, id);
     if (!qs) continue;
-    createRun(db, business, qs, live, "live");
+    createRun(db, business, qs, live, "live", { fingerprint: buildFingerprint(live, "live", isClaudeExtractorConfigured()) });
     started++;
   }
   return started;

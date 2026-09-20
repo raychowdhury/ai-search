@@ -1,7 +1,7 @@
 # Product Requirements: AI Visibility Check for Local Businesses
 
 Working name: **AI Visibility Check** (placeholder; see MEMORY.md open questions).
-Status: draft v0.1, 2026-09-19. Owner: Ray (product) with Claude as engineering partner.
+Status: v0.2, 2026-09-20. Owner: Ray (product) with Claude as engineering partner. Working product name: Mentioned. Confirmed focus: U.S. owners of single-location local businesses, sold to directly.
 
 ## 1. Problem
 
@@ -64,6 +64,19 @@ What we do **not** promise:
 1. Owner changes the question set (adds a seasonal service, removes an irrelevant question).
 2. The tool saves a new question-set version. Later runs record which version they used. Comparisons across versions are marked "different questions".
 
+## 4b. The correction workflow (added 2026-09-20)
+
+Visibility observations are supporting evidence; the product's core loop is: **confirm business facts → see one useful correction → complete it → verify it changed**.
+
+1. The owner confirms public facts progressively (phone, hours, whether customers visit or the business travels to them, optional booking link, priority services). Nothing unconfirmed is ever placed in publishable wording.
+2. Each action shows the evidence, a draft built only from confirmed facts (with unconfirmed fields bracketed and listed), effort, and a "copy instructions for your web person" export. No automatic publishing.
+3. Marking an action done records the owner's intent and queues a fresh read of the site. The action is called **verified fixed** only when that read no longer shows the issue; otherwise **still observed**, or **could not verify** when the site cannot be fetched. Answer-based actions are marked "could not verify" until a new check is run.
+4. If a later check observes the same issue again, the action shows **came back** while keeping the completion history.
+
+**Pilot hypotheses (not decisions):** owner-operated businesses in one category and one metro, with an existing website; a $29/month monitoring-and-guided-fixes offer and a $99 one-time assisted first-fix session as experiments. See docs/research/MENTIONED_MARKET_ANALYSIS.md sections 6 to 8.
+
+**Success events recorded for the pilot:** onboarding completed, facts confirmed, run started, real report viewed, action started, action done reported, action verified, verification failed, recurrence detected. Activation = businesses with at least one verified correction / businesses that received a real report.
+
 ## 5. MVP scope (v1)
 
 | Feature | Description |
@@ -87,6 +100,8 @@ What we do **not** promise:
 - Multi-location businesses.
 - Rank tracking or any claim of position.
 - Scraping consumer AI apps or any integration that violates a platform's terms.
+- Automatic edits to websites or profiles; the product exports instructions, never publishes.
+- Claims of causation between a completed action and later visibility, or any revenue attribution.
 - Paid ads, review management, social posting.
 - Billing and subscriptions (v1 is a validation build; pricing is an open question).
 

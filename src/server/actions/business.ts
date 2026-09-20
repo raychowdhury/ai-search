@@ -6,10 +6,11 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { businessInputSchema, splitList } from "@/lib/business/schema";
 import { saveBusiness, getBusinessForUser, setSchedule, deleteBusiness } from "@/lib/business/repo";
-import { getCurrentQuestionSet, saveQuestionSet, newQuestion, questionListSchema } from "@/lib/questions/repo";
-import { suggestQuestions } from "@/lib/questions/suggest";
+import { getCurrentQuestionSet, saveQuestionSet, suggestedQuestionSet, questionListSchema } from "@/lib/questions/repo";
+import { suggestQuestionsDetailed } from "@/lib/questions/suggest";
 import { deleteUser } from "@/lib/auth/users";
 import { clearSessionCookie } from "@/server/auth";
+import { logEvent } from "@/lib/events";
 
 export interface FormState {
   errors?: Record<string, string>;
@@ -30,6 +31,11 @@ export async function saveBusinessAction(_prev: FormState, formData: FormData): 
     timezone: String(formData.get("timezone") ?? ""),
     serviceArea: formData.get("serviceArea") ?? "",
     services: splitList(String(formData.get("services") ?? "")),
+    phone: String(formData.get("phone") ?? ""),
+    hours: String(formData.get("hours") ?? ""),
+    businessType: String(formData.get("businessType") ?? "unknown"),
+    bookingUrl: String(formData.get("bookingUrl") ?? ""),
+    priorityServices: splitList(String(formData.get("priorityServices") ?? "")),
   };
   const parsed = businessInputSchema.safeParse(raw);
   if (!parsed.success) {
@@ -43,8 +49,10 @@ export async function saveBusinessAction(_prev: FormState, formData: FormData): 
   const db = getDb();
   const hadBusiness = Boolean(getBusinessForUser(db, user.id));
   const business = saveBusiness(db, user.id, parsed.data);
+  if (!hadBusiness) logEvent(db, business.id, "onboarding_completed", {});
+  if (business.factsConfirmedAt) logEvent(db, business.id, "facts_confirmed", { phone: Boolean(business.phone), hours: Boolean(business.hours), businessType: business.businessType });
   if (!getCurrentQuestionSet(db, business.id)) {
-    saveQuestionSet(db, business.id, suggestQuestions(business).map((t) => newQuestion(t, "suggested")));
+    saveQuestionSet(db, business.id, suggestedQuestionSet(suggestQuestionsDetailed(business)));
   }
   redirect(hadBusiness ? "/settings?saved=1" : "/questions");
 }
@@ -73,7 +81,7 @@ export async function regenerateQuestionsAction(): Promise<void> {
   const db = getDb();
   const business = getBusinessForUser(db, user.id);
   if (!business) redirect("/onboarding");
-  saveQuestionSet(db, business.id, suggestQuestions(business).map((t) => newQuestion(t, "suggested")));
+  saveQuestionSet(db, business.id, suggestedQuestionSet(suggestQuestionsDetailed(business)));
   redirect("/questions");
 }
 

@@ -20,6 +20,23 @@ export function isValidTimezone(tz: string): boolean {
   }
 }
 
+/** Digits only, for comparing phone numbers found on pages with the confirmed one. */
+export function phoneDigits(s: string): string {
+  return s.replace(/\D/g, "");
+}
+
+export const BUSINESS_TYPES = ["unknown", "storefront", "service_area", "hybrid"] as const;
+export type BusinessType = (typeof BUSINESS_TYPES)[number];
+
+const optionalText = (max: number, label: string) =>
+  z
+    .string()
+    .trim()
+    .max(max, `${label} can be at most ${max} characters`)
+    .refine((s) => !hasControlChars(s), `${label} contains characters we cannot use`)
+    .optional()
+    .transform((s) => (s ? s : undefined));
+
 export const businessInputSchema = z.object({
   name: trimmed(2, 120, "Business name"),
   aliases: z.array(trimmed(2, 120, "Other name")).max(5, "You can add up to 5 other names").default([]),
@@ -52,6 +69,12 @@ export const businessInputSchema = z.object({
     .array(trimmed(2, 60, "Service"))
     .min(1, "Add at least one service")
     .max(15, "You can add up to 15 services"),
+  // Owner-confirmed public facts. All optional; never invented when absent.
+  phone: optionalText(40, "Phone number").refine((p) => !p || (phoneDigits(p).length >= 7 && phoneDigits(p).length <= 15), "Please enter a phone number with 7 to 15 digits"),
+  hours: optionalText(200, "Opening hours"),
+  businessType: z.enum(BUSINESS_TYPES).default("unknown"),
+  bookingUrl: optionalText(2048, "Booking link").refine((u) => !u || parsePublicHttpUrl(u).ok, "Please enter a full web address for booking, like https://example.com/book"),
+  priorityServices: z.array(trimmed(2, 60, "Service")).max(5, "Choose up to 5 priority services").default([]),
 });
 
 export type BusinessInput = z.infer<typeof businessInputSchema>;
@@ -63,8 +86,13 @@ export interface LocationContext {
   timezone?: string;
 }
 
-export interface Business extends Omit<BusinessInput, "timezone"> {
+export interface Business extends Omit<BusinessInput, "timezone" | "phone" | "hours" | "bookingUrl"> {
   timezone?: string;
+  phone?: string;
+  hours?: string;
+  bookingUrl?: string;
+  /** When the owner last saved the public-facts group; null means facts are unconfirmed. */
+  factsConfirmedAt: string | null;
   id: string;
   userId: string;
   websiteDomain: string;
@@ -80,6 +108,11 @@ export function locationOf(b: Pick<Business, "city" | "region" | "country" | "ti
     country: b.country,
     ...(b.timezone ? { timezone: b.timezone } : {}),
   };
+}
+
+/** True when the owner has confirmed at least one public fact. */
+export function hasConfirmedFacts(b: Business): boolean {
+  return Boolean(b.phone || b.hours || b.bookingUrl || b.businessType !== "unknown");
 }
 
 /** Splits "a, b, c" or newline separated text into trimmed, de-duplicated items. */

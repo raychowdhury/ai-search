@@ -190,4 +190,38 @@ CREATE TABLE jobs (
 CREATE INDEX jobs_status_idx ON jobs(status, run_after);
 `,
   },
+  {
+    version: 2,
+    name: "owner_facts_evidence_verification",
+    sql: `
+ALTER TABLE businesses ADD COLUMN phone TEXT;
+ALTER TABLE businesses ADD COLUMN hours TEXT;
+ALTER TABLE businesses ADD COLUMN business_type TEXT NOT NULL DEFAULT 'unknown';
+ALTER TABLE businesses ADD COLUMN booking_url TEXT;
+ALTER TABLE businesses ADD COLUMN priority_services TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE businesses ADD COLUMN facts_confirmed_at TEXT;
+
+ALTER TABLE checks ADD COLUMN evidence_status TEXT NOT NULL DEFAULT 'full';
+ALTER TABLE checks ADD COLUMN analysis_method TEXT;
+ALTER TABLE checks ADD COLUMN analysis_note TEXT;
+
+ALTER TABLE mentions ADD COLUMN stance TEXT NOT NULL DEFAULT 'unknown';
+
+ALTER TABLE runs ADD COLUMN fingerprint TEXT;
+
+ALTER TABLE recommendations ADD COLUMN scope TEXT NOT NULL DEFAULT '';
+ALTER TABLE recommendations ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'not_checked';
+ALTER TABLE recommendations ADD COLUMN verified_at TEXT;
+ALTER TABLE recommendations ADD COLUMN verification_note TEXT;
+
+CREATE TABLE events (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  meta TEXT NOT NULL DEFAULT '{}',
+  at TEXT NOT NULL
+);
+CREATE INDEX events_business_idx ON events(business_id, at);
+`,
+  },
 ];

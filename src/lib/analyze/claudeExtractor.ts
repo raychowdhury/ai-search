@@ -26,7 +26,7 @@ export const claudeExtractor: Extractor = async (answer) => {
     output_config: { format: zodOutputFormat(extractedBusinessSchema) },
   });
   if (response.stop_reason === "refusal" || !response.parsed_output) {
-    return { businesses: [] };
+    throw new Error(response.stop_reason === "refusal" ? "extraction refused" : "extraction returned no parseable output");
   }
   return response.parsed_output;
 };

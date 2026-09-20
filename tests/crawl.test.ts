@@ -1,24 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { safeFetch, RobotsRules, type Resolver } from "@/lib/crawl/safeFetch";
+import { safeFetch, RobotsRules, pinnedDispatcher, type Resolver, type PinnedFetch } from "@/lib/crawl/safeFetch";
 import { parsePage } from "@/lib/crawl/parse";
 import { runAuditRules } from "@/lib/audit/rules";
 import { choosePages } from "@/lib/audit/run";
 
 const publicResolver: Resolver = { resolve: async (h) => (h === "private.example" ? ["10.0.0.1"] : ["93.184.216.34"]) };
 
-function fakeFetch(routes: Record<string, { status?: number; headers?: Record<string, string>; body?: string }>): typeof fetch {
-  return (async (input: string | URL | Request) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+function fakeFetch(routes: Record<string, { status?: number; headers?: Record<string, string>; body?: string }>, seen: string[] = []): PinnedFetch {
+  return async (url, init) => {
+    seen.push(init.pinnedAddress);
     const r = routes[url];
     if (!r) return new Response("nope", { status: 404, headers: { "content-type": "text/html" } });
     return new Response(r.body ?? "", { status: r.status ?? 200, headers: { "content-type": "text/html", ...(r.headers ?? {}) } });
-  }) as typeof fetch;
+  };
 }
 
 describe("safeFetch", () => {
   it("fetches a public page", async () => {
     const res = await safeFetch("https://site.example/", { resolver: publicResolver, fetchImpl: fakeFetch({ "https://site.example/": { body: "<title>Hi</title>" } }) });
     expect(res.ok).toBe(true);
+  });
+  it("pins the connection to the address that was validated, so a later DNS answer cannot redirect it", async () => {
+    let calls = 0;
+    const rebinding: Resolver = { resolve: async () => (++calls === 1 ? ["93.184.216.34"] : ["10.0.0.1"]) };
+    const seen: string[] = [];
+    const res = await safeFetch("https://site.example/", { resolver: rebinding, fetchImpl: fakeFetch({ "https://site.example/": { body: "ok" } }, seen) });
+    expect(res.ok).toBe(true);
+    expect(seen).toEqual(["93.184.216.34"]);
+    expect(calls).toBe(1);
+    // Each redirect hop re-validates and re-pins; the second resolve now returns a private address and is refused.
+    const seen2: string[] = [];
+    let calls2 = 0;
+    const flipping: Resolver = { resolve: async () => (++calls2 === 1 ? ["93.184.216.34"] : ["10.0.0.1"]) };
+    const hop = await safeFetch("https://site.example/a", { resolver: flipping, fetchImpl: fakeFetch({ "https://site.example/a": { status: 302, headers: { location: "/b" } }, "https://site.example/b": { body: "x" } }, seen2) });
+    expect(hop.ok === false && hop.code).toBe("blocked_private_network");
+    expect(seen2).toEqual(["93.184.216.34"]);
+  });
+  it("builds a dispatcher whose lookup returns the pinned address", async () => {
+    const d = pinnedDispatcher("93.184.216.34");
+    expect(d).toBeDefined();
+    await d.close();
   });
   it("blocks hosts that resolve to private addresses", async () => {
     const res = await safeFetch("https://private.example/", { resolver: publicResolver, fetchImpl: fakeFetch({}) });

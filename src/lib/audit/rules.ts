@@ -1,5 +1,6 @@
 import type { ParsedPage } from "@/lib/crawl/parse";
 import { findNameMatches } from "@/lib/analyze/names";
+import { phoneDigits, type BusinessType } from "@/lib/business/schema";
 
 export type Severity = "good" | "warn" | "missing";
 export type Category = "services" | "location" | "contact" | "technical";
@@ -21,6 +22,10 @@ export interface AuditContext {
   region: string;
   services: string[];
   websiteUrl: string;
+  /** Owner-confirmed facts; undefined means unconfirmed, so rules check presence only. */
+  phone?: string;
+  hours?: string;
+  businessType?: BusinessType;
 }
 
 const PHONE_RE = /(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}\b/;
@@ -71,14 +76,25 @@ export function runAuditRules(ctx: AuditContext, pages: ParsedPage[]): Finding[]
   const home = pages[0];
 
   // --- Contact ---
+  const pagesRead = pages.length;
+  const coverage = `the ${pagesRead} page${pagesRead === 1 ? "" : "s"} we read`;
   const telPage = pages.find((p) => p.telLinks.length > 0);
   const phonePage = telPage ?? pages.find((p) => PHONE_RE.test(p.text));
-  if (telPage) {
-    findings.push({ ruleId: "contact.phone", category: "contact", severity: "good", title: "Phone number is easy to find", detail: `A clickable phone link was found on ${shortUrl(telPage.url)}.`, evidence: { pageUrl: telPage.url, excerpt: telPage.telLinks[0] }, pageUrl: telPage.url });
+  const confirmedDigits = ctx.phone ? phoneDigits(ctx.phone) : null;
+  const foundDigits = new Set<string>();
+  for (const p of pages) {
+    for (const t of p.telLinks) foundDigits.add(phoneDigits(t));
+    for (const m of p.text.matchAll(new RegExp(PHONE_RE.source, "g"))) foundDigits.add(phoneDigits(m[0]));
+  }
+  const confirmedFound = confirmedDigits ? [...foundDigits].some((d) => d.endsWith(confirmedDigits) || confirmedDigits.endsWith(d)) : null;
+  if (confirmedDigits && phonePage && confirmedFound === false) {
+    findings.push({ ruleId: "contact.phone", category: "contact", severity: "warn", title: "Phone number on the site differs from the one you gave us", detail: `In ${coverage} we found a phone number that does not match ${ctx.phone}. Check which one is right and use it everywhere.`, evidence: { pageUrl: phonePage.url, excerpt: excerptAround(phonePage.text, PHONE_RE) }, pageUrl: phonePage.url });
+  } else if (telPage) {
+    findings.push({ ruleId: "contact.phone", category: "contact", severity: "good", title: confirmedFound ? "Your confirmed phone number is easy to find" : "Phone number is easy to find", detail: `A clickable phone link was found on ${shortUrl(telPage.url)}.`, evidence: { pageUrl: telPage.url, excerpt: telPage.telLinks[0] }, pageUrl: telPage.url });
   } else if (phonePage) {
-    findings.push({ ruleId: "contact.phone", category: "contact", severity: "warn", title: "Phone number is text only", detail: "We found a phone number, but it is not a clickable link. Making it clickable helps visitors on phones and helps AI assistants recognise it.", evidence: { pageUrl: phonePage.url, excerpt: excerptAround(phonePage.text, PHONE_RE) }, pageUrl: phonePage.url });
+    findings.push({ ruleId: "contact.phone", category: "contact", severity: "warn", title: "Phone number is text only", detail: "We found a phone number, but it is not a clickable link. Making it clickable helps visitors on phones and makes the number easier for tools to recognise.", evidence: { pageUrl: phonePage.url, excerpt: excerptAround(phonePage.text, PHONE_RE) }, pageUrl: phonePage.url });
   } else {
-    findings.push({ ruleId: "contact.phone", category: "contact", severity: "missing", title: "No phone number found", detail: "We could not find a phone number on the pages we checked. Add it to the header or footer of every page." });
+    findings.push({ ruleId: "contact.phone", category: "contact", severity: "missing", title: "No phone number found", detail: `We could not find a phone number in ${coverage}. Add it to the header or footer of every page.` });
   }
 
   const contactPage = pages.find((p) => /\/(contact|contact-us|get-in-touch|reach-us)\b/i.test(new URL(p.url).pathname));
@@ -95,8 +111,10 @@ export function runAuditRules(ctx: AuditContext, pages: ParsedPage[]): Finding[]
   const addrPage = pages.find((p) => ADDRESS_RE.test(p.text));
   if (addrPage) {
     findings.push({ ruleId: "location.address", category: "location", severity: "good", title: "Street address found", detail: `An address appears on ${shortUrl(addrPage.url)}.`, evidence: { pageUrl: addrPage.url, excerpt: excerptAround(addrPage.text, ADDRESS_RE) }, pageUrl: addrPage.url });
+  } else if (ctx.businessType === "service_area") {
+    findings.push({ ruleId: "location.address", category: "location", severity: "good", title: "No street address, and none needed", detail: "You told us you serve customers at their location, so we do not expect a public street address. Make sure the area you serve is stated instead." });
   } else {
-    findings.push({ ruleId: "location.address", category: "location", severity: "missing", title: "No street address found", detail: "We did not find a street address. If you serve customers at your location, add the full address to your footer and contact page." });
+    findings.push({ ruleId: "location.address", category: "location", severity: "missing", title: "No street address found", detail: `We did not find a street address in ${coverage}. If customers visit you, add the full address to your footer and contact page. If you only travel to customers, tell us in Settings and we will stop asking.` });
   }
 
   const cityRe = new RegExp(`\\b${escapeRe(ctx.city)}\\b`, "i");
@@ -114,7 +132,7 @@ export function runAuditRules(ctx: AuditContext, pages: ParsedPage[]): Finding[]
     const hp = pages.find((p) => HOURS_RE.test(p.text)) ?? home;
     findings.push({ ruleId: "location.hours", category: "location", severity: "good", title: "Opening hours found", detail: `Hours appear on ${shortUrl(hp.url)}.`, evidence: { pageUrl: hp.url, excerpt: excerptAround(hp.text, HOURS_RE) }, pageUrl: hp.url });
   } else {
-    findings.push({ ruleId: "location.hours", category: "location", severity: "missing", title: "No opening hours found", detail: "Questions like 'open on weekends' depend on published hours. Add your hours in plain text (not only in an image)." });
+    findings.push({ ruleId: "location.hours", category: "location", severity: "missing", title: "No opening hours found", detail: `We did not find opening hours in ${coverage}. ${ctx.hours ? `You told us your hours are "${ctx.hours}"; publish them in plain text (not only in an image).` : "Add your hours in plain text (not only in an image)."}` });
   }
 
   // --- Services ---
@@ -125,7 +143,7 @@ export function runAuditRules(ctx: AuditContext, pages: ParsedPage[]): Finding[]
   } else if (missingServices.length < serviceHits.length) {
     findings.push({ ruleId: "services.named", category: "services", severity: "warn", title: "Some services are not named on the site", detail: `We could not find: ${missingServices.join(", ")}. Add a short section or page for each.` });
   } else {
-    findings.push({ ruleId: "services.named", category: "services", severity: "missing", title: "Your main services are not named on the site", detail: `None of these appear in the page text: ${ctx.services.join(", ")}. Assistants can only recommend you for services they can read about.` });
+    findings.push({ ruleId: "services.named", category: "services", severity: "missing", title: "Your main services are not named on the site", detail: `None of these appear in the page text: ${ctx.services.join(", ")}. This is what ${coverage} showed; other sources may still describe your services, but your own site is the one you control.` });
   }
 
   const servicesPage = pages.find((p) => /\/(services?|what-we-do|treatments|menu|pricing)\b/i.test(new URL(p.url).pathname));
@@ -136,6 +154,14 @@ export function runAuditRules(ctx: AuditContext, pages: ParsedPage[]): Finding[]
   }
 
   // --- Technical ---
+  const thinPages = pages.filter((p) => p.text.length < 200);
+  if (thinPages.length === pages.length) {
+    findings.push({ ruleId: "technical.readable", category: "technical", severity: "warn", title: "We could read very little text on your site", detail: "The pages we fetched contain almost no plain text. If your site builds its content with scripts, our checks (and some other tools) may be incomplete. Treat the findings below as unable to verify rather than as missing." });
+  } else if (thinPages.length > 0) {
+    findings.push({ ruleId: "technical.readable", category: "technical", severity: "good", title: `Site text is readable (${pages.length - thinPages.length} of ${pages.length} pages had substantial text)`, detail: "Our checks could read the main pages." });
+  } else {
+    findings.push({ ruleId: "technical.readable", category: "technical", severity: "good", title: "Site text is readable", detail: `All ${pagesRead} fetched pages had substantial plain text.` });
+  }
   const nameOnHome = findNameMatches(`${home.title}\n${home.text}`, [ctx.name, ...ctx.aliases]).length > 0;
   findings.push(
     nameOnHome

@@ -4,9 +4,15 @@ import type { RunMetrics, QuestionOutcome } from "@/lib/metrics/compute";
 export interface Comparability {
   comparable: boolean;
   differences: string[];
+  /** True when one or both runs predate measurement fingerprints, so configuration changes cannot be ruled out. */
+  legacy: boolean;
 }
 
-/** Two runs are comparable only when questions, platforms, location context, and data mode all match. */
+/**
+ * Two runs are comparable only when questions, platforms, location context, data
+ * mode, and the measurement fingerprint (models, extraction version, prompt
+ * template) all match. A configuration change is not a change in the business.
+ */
 export function comparability(a: Run, b: Run): Comparability {
   const differences: string[] = [];
   if (a.questionSetVersion !== b.questionSetVersion) differences.push("different question sets");
@@ -16,7 +22,16 @@ export function comparability(a: Run, b: Run): Comparability {
   if (JSON.stringify(a.locationContext) !== JSON.stringify(b.locationContext)) differences.push("different location context");
   if (a.dataMode !== b.dataMode) differences.push("one run uses sample data");
   if (a.status !== "complete" || b.status !== "complete") differences.push("a run is not complete");
-  return { comparable: differences.length === 0, differences };
+  const legacy = !a.fingerprint || !b.fingerprint;
+  if (!legacy && JSON.stringify(a.fingerprint) !== JSON.stringify(b.fingerprint)) {
+    const fa = a.fingerprint!;
+    const fb = b.fingerprint!;
+    if (JSON.stringify(fa.models) !== JSON.stringify(fb.models)) differences.push("different models");
+    if (fa.extractionVersion !== fb.extractionVersion || fa.extractionModel !== fb.extractionModel) differences.push("different analysis settings");
+    if (fa.promptTemplate !== fb.promptTemplate) differences.push("different question wording template");
+    if (differences.length === 0) differences.push("different measurement settings");
+  }
+  return { comparable: differences.length === 0, differences, legacy };
 }
 
 export interface QuestionChange {
@@ -28,7 +43,7 @@ export interface QuestionChange {
   change: "gained" | "lost" | "same" | "unknown";
 }
 
-/** Per-question changes between an earlier and a later run. Failed checks yield "unknown", never "lost". */
+/** Per-question changes between an earlier and a later run. Failed checks yield "unknown", never "lost". These are observations, not trends. */
 export function compareRuns(earlier: RunMetrics, later: RunMetrics): QuestionChange[] {
   const key = (q: QuestionOutcome) => `${q.questionId}|${q.platform}`;
   const before = new Map(earlier.questions.map((q) => [key(q), q]));

@@ -6,6 +6,7 @@ import { PLATFORM_LABELS } from "@/lib/platforms/types";
 import { Card, CardTitle, Chip, chipIcons, CompetitorBar, DataModeBadge, LinkButton, MetricSentence, Notice, formatDate } from "@/components/ui";
 import { IconChevron, IconLines, IconPeople, IconSearch } from "@/components/icons";
 import { StatusChip } from "@/components/report";
+import { logEvent } from "@/lib/events";
 
 function shortLabel(id: keyof typeof PLATFORM_LABELS): string {
   return PLATFORM_LABELS[id].replace(/\s*\(.*\)\s*$/, "").replace("ChatGPT models", "ChatGPT");
@@ -53,6 +54,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const n = metrics.successfulChecks;
   const isSample = run.dataMode === "demo";
+  if (!isSample) logEvent(db, business.id, "report_viewed", { runId: run.id });
   const competitors = metrics.competitors.slice(0, 4);
   const platforms = run.platforms.map(shortLabel).join(", ");
 

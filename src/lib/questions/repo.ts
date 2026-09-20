@@ -17,6 +17,7 @@ export const questionListSchema = z
       id: z.string().min(1).max(40),
       text: questionTextSchema,
       source: z.enum(["suggested", "owner"]),
+      intent: z.enum(["discovery", "service", "availability", "price", "comparison", "other"]).optional(),
     }),
   )
   .min(1, "Keep at least one question")
@@ -63,8 +64,13 @@ export function getQuestionSetById(db: Db, id: string): QuestionSet | null {
   return row ? toSet(row) : null;
 }
 
-export function newQuestion(text: string, source: Question["source"]): Question {
-  return { id: newId().slice(-10).toLowerCase(), text: text.trim(), source };
+export function newQuestion(text: string, source: Question["source"], intent?: Question["intent"]): Question {
+  return { id: newId().slice(-10).toLowerCase(), text: text.trim(), source, ...(intent ? { intent } : {}) };
+}
+
+/** Builds the initial suggested set with intents recorded. */
+export function suggestedQuestionSet(suggested: Array<{ text: string; intent: Question["intent"] }>): Question[] {
+  return suggested.map((s) => newQuestion(s.text, "suggested", s.intent));
 }
 
 /** Saves a new version and marks it current. Returns the existing version when nothing changed. */

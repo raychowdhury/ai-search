@@ -4,6 +4,8 @@ Living record of decisions, assumptions, open questions, limitations, and status
 
 ## Current status
 
+- 2026-09-20: Implemented the handoff milestones M0 to M8 from docs/research/CLAUDE_CODE_HANDOFF.md (research supplied 2026-09-19, reviewed commit f81634433a112e759ff660b9fbf1b7db8b8fe8b6). All nine cited code findings were reproduced at the cited lines and fixed with regression tests. 110 tests pass; typecheck, lint, and production build are clean. Migration v2 applied to the existing development database and the earlier runs still render. Live provider verification remains blocked: no API keys in the environment. Pilot category, metro, and pricing remain hypotheses, not decisions.
+
 - 2026-09-19 (morning): Project started from an empty directory. Six planning docs written. Provider capabilities verified against official docs. No API keys are available in the development environment, so the MVP is built with replaceable adapters and a labeled demo adapter.
 - 2026-09-19 (evening): Design system and all screens restyled from the Claude Design mockups v2 (see decisions below). Typecheck, lint, and build clean.
 - 2026-09-19 (end of day): MVP implemented on Next.js 16.3 / React 19 / TypeScript / Tailwind 4 / node:sqlite. 73 unit and integration tests pass, typecheck and lint are clean, production build succeeds. Working in sample mode: signup, onboarding, question editing with versioning, sample run through the background worker, dashboard, answers, competitors, website audit (live fetch of the real site), three actions with status tracking, history with comparability rules, settings with schedule and account deletion. Live adapters (Anthropic, OpenAI, Perplexity) and Claude-based competitor extraction are implemented but unverified because no keys exist here.
@@ -34,6 +36,23 @@ Living record of decisions, assumptions, open questions, limitations, and status
 | 2026-09-19 | Working product name is "Mentioned" (from the mockups); the repo and docs keep "AI Visibility Check" as the project name. | The mockup decision; wordmark is plain text. |
 | 2026-09-19 | Live checks show an estimated API cost beside the button and require a one-step confirmation; sample checks do not. How it works is folded into the landing page and /how-it-works redirects there. Tablet uses the bottom tab bar; the sidebar appears only above 1024px. Model names appear only in answer-card meta text. | Decisions recorded in the mockups' notes. |
 
+| 2026-09-20 | Adopted the research's "confirm facts → correct → verify" loop as the product's core; visibility observations are supporting evidence. | Research finding that affordable local AI-visibility trackers already exist; the differentiator to test is completed, verified corrections. |
+| 2026-09-20 | Suggested wording never invents facts; JSON-LD omits unconfirmed fields and lists them; drafts carry a "still needs" list. | Owners could otherwise publish wrong hours or phone numbers. |
+| 2026-09-20 | Extraction requires the full business name inside the evidence span; stance replaces the boolean recommendation; per-answer analysis method stored. | Closes the first-token overlap and negative-list-item defects. |
+| 2026-09-20 | Oversized provider bodies are dropped, not truncated; citations kept; unreadable evidence is an explicit state excluded from the citation denominator. | Truncated JSON silently became "no citations". |
+| 2026-09-20 | Completion status carries across runs only for the same scope; recurrence is flagged, not hidden. | A done task was staying done regardless of fresh evidence. |
+| 2026-09-20 | Runs record a measurement fingerprint; comparisons treat model or analysis changes as measurement breaks. | Configuration changes must not read as business changes. |
+| 2026-09-20 | Fetch connections are pinned to the validated IP through undici's connector lookup. | Closes the DNS rebinding gap between validation and connect. |
+| 2026-09-20 | Questions carry intents; weekend and same-day questions appear only when confirmed hours or an emergency service support them; priority services first. | Stop measuring demand for things the business does not offer. |
+| 2026-09-20 | Source recommendations reference real citation rows and say we have not checked the owner's presence there. | Synthetic domain references were not navigable evidence. |
+
+## Hypotheses from the research (not decisions)
+
+- Pilot: owner-operated plumbing businesses in one U.S. metro with an existing website (any category with reachable owners is acceptable).
+- Offers to test: $29/month monitoring and guided fixes; $99 one-time assisted first-fix session.
+- Positioning to test: "See how AI describes your local business, and fix the information customers rely on."
+- Operating gates for a 10-owner pilot: 6 identify a material issue, 5 complete a correction in 7 days, 4 verifiable, 3 buy.
+
 ## Assumptions (reversible, chosen without confirmation)
 
 - Owners run one business per account in v1.
@@ -54,7 +73,16 @@ Living record of decisions, assumptions, open questions, limitations, and status
 6. Whether to offer a Sonnet 5 "lower cost" toggle in settings or keep model choice internal.
 7. Should owners see provider model names, or only platform names? (Current plan: platform name plus model in a tooltip.)
 
-## Known gaps in the current build
+## Known gaps in the current build (updated 2026-09-20)
+
+- Live adapters are unverified (no keys); the smoke script now persists evidence to data/ when run.
+- No browser-level automated test of the correction workflow; verified with a script against a database copy.
+- Password reset and email verification still need an email provider (account lockout recovery).
+- Backup restore has not been drilled.
+- Consumer-app surfaces (ChatGPT app, Google AI Mode, AI Overviews) are not observed; only official APIs.
+- The repeatability experiment has not run.
+
+## Superseded gaps
 
 - Live adapters are unverified (no keys). Perplexity endpoint path `/v1/sonar` and OpenAI default model `gpt-5-mini` with web search must be confirmed on first live run.
 - No content security policy headers yet. Server actions rely on Next's built-in origin checks and same-site cookies.

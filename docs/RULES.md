@@ -10,6 +10,11 @@ These rules apply to every contributor, human or AI. Status: v0.1, 2026-09-19.
 4. **Failed checks are not absence.** A failed check is stored with its error and displayed as failed. It is excluded from every denominator.
 5. **Demo data is separate.** Every stored run, check, and audit carries `data_mode`. Live queries filter `data_mode = 'live'`. Demo screens are labeled "Sample data".
 6. **No secrets in the repo, database, logs, or docs.** Keys come from environment variables. Health and diagnostics report configured adapter names only.
+7. **No invented business facts.** Suggested wording and structured data contain only facts the owner confirmed. Unconfirmed fields are omitted from valid code or shown as bracketed placeholders with a list of what still needs confirming. Never default hours, phone, address, pricing, credentials, availability, or booking.
+8. **A substring check proves presence, not meaning.** Evidence excerpts must contain the full business name; that guards fabrication but not the model's judgement. Stance (positive, negative, neutral, unknown) is stored per mention; unknown is never treated as negative or as absence.
+9. **Unknown is not zero.** Unreadable evidence, failed extraction, and unfetchable sites are reported as unavailable states with their own counts, and are left out of the affected denominators. They never appear as "no citations", "no competitors", or "missing".
+10. **Verification is not causation.** An action is "verified fixed" only when a fresh read of the site no longer shows the finding. That says the site changed; it says nothing about AI answers or customers.
+11. **Sample, live, and manual observations stay separate.** Sample data never enters live metrics; any manual consumer-app observation added later must carry its own collection method and date and stay out of API totals.
 
 ## 2. Coding conventions
 
@@ -33,7 +38,8 @@ These rules apply to every contributor, human or AI. Status: v0.1, 2026-09-19.
 - Services: 1 to 15 items, each 2 to 60 characters. Aliases: 0 to 5 items.
 - Questions: 1 to 20 per set, each 8 to 200 characters, no control characters.
 - Provider responses: parsed against the adapter's schema; parse failure is a failed check with code `provider_response_invalid`, and the raw body is still stored (truncated to 200 KB).
-- LLM extraction output: parsed against a schema; each evidence excerpt must be an exact substring of the answer text or it is dropped.
+- LLM extraction output: parsed against a schema; each evidence excerpt must be an exact substring of the answer text and must contain the extracted business's full name (tolerant of case, punctuation, and & vs and), or the entity is dropped. A first-token overlap is not enough.
+- Provider evidence larger than 200 KB: the provider body is dropped and the envelope marked `provider_truncated`; citations are kept. Never truncate serialized JSON.
 
 ## 4. Testing expectations
 

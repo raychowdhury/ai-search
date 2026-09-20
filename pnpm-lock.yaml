@@ -26,6 +26,9 @@ importers:
       ulid:
         specifier: ^3.0.2
         version: 3.0.2
+      undici:
+        specifier: ^8.10.2
+        version: 8.10.2
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -2487,6 +2490,10 @@ packages:
   undici@7.29.1:
     resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
     engines: {node: '>=20.18.1'}
+
+  undici@8.10.2:
+    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
+    engines: {node: '>=22.19.0'}
 
   unrs-resolver@1.12.2:
     resolution: {integrity: sha512-dmlRxBJJayXjqTwC+JtF1HhJmgf3ftQ3YejFcZrf4+KKtJv0qDsK1pjqaaVjG7wJ5NJ6UVP1OqRMQ71Z4C3rxQ==}
@@ -5124,6 +5131,8 @@ snapshots:
   undici-types@7.18.2: {}
 
   undici@7.29.1: {}
+
+  undici@8.10.2: {}
 
   unrs-resolver@1.12.2:
     dependencies:

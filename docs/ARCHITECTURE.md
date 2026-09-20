@@ -1,6 +1,6 @@
 # Architecture
 
-Status: v0.1, 2026-09-19. Updated as implementation decisions change (see MEMORY.md for the decision log).
+Status: v0.2, 2026-09-20. Updated as implementation decisions change (see MEMORY.md for the decision log).
 
 ## 1. Technology stack and reasons
 
@@ -12,7 +12,7 @@ Status: v0.1, 2026-09-19. Updated as implementation decisions change (see MEMORY
 | Database | SQLite via Node's built-in `node:sqlite`, plain SQL with versioned migrations in `src/db/migrations.ts` | Zero-ops and zero native builds (better-sqlite3 failed to compile on Node 24, so we use the built-in module). Repositories are small typed functions; a Postgres move means swapping the driver and the handful of SQL strings. |
 | Validation | Zod | Shared schemas for forms, API inputs, provider responses, and stored JSON. |
 | AI providers | Official SDK or plain HTTPS per provider, behind a `PlatformAdapter` interface | Each provider has a different API. The adapter boundary keeps provider quirks out of the analysis and UI code and makes the demo adapter a drop-in. |
-| Web crawling | Node `fetch` with DNS pre-resolution and private-range checks on every hop, manual redirects, size and time caps, robots.txt, plus `cheerio` for HTML parsing | No headless browser in v1. Keeps the audit fast and the attack surface small. Known gap: DNS is resolved before connect, so a DNS rebinding between resolve and connect is not blocked; a custom dispatcher can close this later. |
+| Web crawling | `undici` fetch with DNS pre-resolution, private-range checks on every hop, and the connection pinned to the validated address through a per-request dispatcher whose lookup returns it (TLS still verifies the hostname); manual redirects, size and time caps, robots.txt, plus `cheerio` for HTML parsing | No headless browser in v1. DNS rebinding between validation and connect is closed by the pinned lookup. |
 | Background work | In-process job runner polling a `jobs` table | Good enough for one instance and a handful of businesses. Swappable for a queue (BullMQ, pg-boss) later without changing job payloads. |
 | Auth | Email + password with Node `crypto.scrypt`, server-side sessions in SQLite, httpOnly cookie, `proxy.ts` for optimistic redirects | No third-party auth dependency for v1. Magic-link email is an optional upgrade once an email provider is chosen. |
 | Testing | Vitest (unit and integration), Playwright (a small smoke suite, later) | Fast unit tests for analysis and safety code; a browser smoke test for the core flow. |
@@ -70,18 +70,23 @@ All tables have `id` (text, ULID), `created_at`, `updated_at` (ISO 8601 UTC). Ti
 |---|---|---|
 | `users` | Owner accounts | email (unique), password_hash, email_verified_at (null in v1) |
 | `sessions` | Server-side sessions | user_id, token_hash, expires_at |
-| `businesses` | One per owner in v1 | user_id, name, aliases (JSON array), website_url, website_domain, category, city, region, country, service_area (text), services (JSON array), location_context (JSON: city, region, country, timezone) |
+| `businesses` | One per owner in v1 | user_id, name, aliases (JSON array), website_url, website_domain, category, city, region, country, timezone, service_area, services (JSON array); owner-confirmed facts: phone, hours, business_type (unknown, storefront, service_area, hybrid), booking_url, priority_services, facts_confirmed_at (provenance: owner; null = unconfirmed) |
 | `question_sets` | Versioned question lists | business_id, version (int), questions (JSON array of {id, text, source: suggested or owner}), is_current |
-| `runs` | One visibility check batch | business_id, question_set_id, platforms (JSON array), location_context (JSON snapshot), data_mode (`live` or `demo`), status (queued, running, complete, failed), started_at, finished_at, summary (JSON metrics snapshot) |
-| `checks` | One question x platform execution | run_id, question_id, question_text, platform, model, location_context (JSON), status (`success` or `failed`), error_code, error_message, requested_at, completed_at, answer_text, raw_response (JSON, verbatim), usage (JSON), data_mode |
-| `mentions` | Businesses named in an answer | check_id, name, normalized_name, is_owner (bool), is_recommended (bool), evidence_text (verbatim excerpt), evidence_start, evidence_end, extraction_method (`name_match`, `llm`, `demo`) |
+| `runs` | One visibility check batch | business_id, question_set_id, platforms (JSON array), location_context (JSON snapshot), data_mode (`live` or `demo`), status, started_at, finished_at, summary (JSON: counts plus competitorExtraction llm/demo/partial/unavailable, extractionUnavailable, evidenceUnreadable), analysis_note, fingerprint (JSON measurement record: collection, models per platform, extraction model and version, prompt template, repetition, language; null on legacy runs) |
+| `checks` | One question x platform execution | run_id, question_id, question_text, platform, model, location_context (JSON), status, error_code, error_message, requested_at, completed_at, answer_text, raw_response (JSON envelope: provider body, citations, demo hints), usage, data_mode, evidence_status (full, provider_truncated, unparseable, missing), analysis_method (llm, demo, name_match, failed), analysis_note |
+| `mentions` | Businesses named in an answer | check_id, name, normalized_name, is_owner, stance (positive, negative, neutral, unknown; is_recommended = stance positive), evidence_text (verbatim excerpt), evidence_start, evidence_end, extraction_method (`name_match`, `llm`, `demo`) |
 | `citations` | Sources cited by the answer | check_id, url, domain, title, is_owner_domain (bool), position |
 | `audits` | One website audit | business_id, run_id (nullable), status, data_mode, started_at, finished_at, pages (JSON: url, status, fetched, bytes, error) |
 | `audit_findings` | Individual audit results | audit_id, rule_id, severity (`good`, `warn`, `missing`), title, detail, evidence (JSON: page url, excerpt), page_url |
-| `recommendations` | Prioritized actions for a run | run_id, rank, rule_id, title, why (text), evidence (JSON array of {type: check or finding, id, excerpt}), suggested_copy (text, nullable), effort (`low`, `medium`, `high`), status (`pending`, `in_progress`, `done`, `skipped`), status_changed_at |
-| `jobs` | Background work | type, payload (JSON), status, attempts, run_after, locked_at, last_error |
+| `recommendations` | Prioritized actions for a run | run_id, rank, rule_id, title, why, evidence (JSON array of typed refs: check, finding with rule id, citation with check id, audit; every id resolves to a stored row), suggested_copy, scope (JSON: scope key, verifyRules, needsConfirmation), effort, status (owner workflow: pending, in_progress, done, skipped), status_changed_at, verification_status (not_checked, queued, verified_fixed, still_observed, unable_to_verify, recurred), verified_at, verification_note |
+| `jobs` | Background work | type (run_checks, website_audit, analyze_run, verify_action), payload (JSON), status, attempts, run_after, locked_at, last_error |
+| `events` | Pilot instrumentation, business-level only | business_id, type (onboarding_completed, facts_confirmed, run_started, report_viewed, action_started, action_done_reported, action_verified, verification_failed, recurrence_detected), meta (JSON), at |
 
-Raw provider responses are stored whole so any displayed claim can be traced back. They are the evidence of record.
+Raw provider responses are stored whole so any displayed claim can be traced back. They are the evidence of record. If an envelope would exceed 200 KB, the provider body is dropped and the citations and hints are kept intact, and the check is marked `provider_truncated`; a stored envelope that cannot be parsed is marked `unparseable` and its citations are reported as unavailable, never as zero.
+
+**Verification jobs.** Marking an action done enqueues `verify_action`. For audit-based actions the worker re-reads the site and checks the action's `verifyRules`; all good → `verified_fixed`, any remaining → `still_observed`, fetch failure → `unable_to_verify`. Answer-based actions are `unable_to_verify` until a new check runs. When a later run produces the same rule with the same scope after the owner marked it done, verification is set to `recurred` and a `recurrence_detected` event is logged.
+
+**Measurement fingerprints.** Each run records how it measured. History compares two runs per question only when question version, platforms, location, data mode, and fingerprint match; a model or analysis-version change is reported as a measurement break. Runs without a fingerprint are legacy observations with a stated limitation.
 
 ## 4. Metric definitions (implemented in `metrics/`)
 
@@ -177,6 +182,10 @@ These are estimates from list prices; the app records real `usage` per check so 
 - Rate limit login attempts per email and per IP (in-memory in v1).
 - All business data is scoped by `user_id`; every query goes through helpers that require the current user.
 - Email verification and password reset are planned (needs an email provider; open question).
+
+## 8b. Security headers and abuse limits
+
+`next.config.ts` sets a Content-Security-Policy (self plus inline scripts and styles, which Next.js hydration requires), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, and `Permissions-Policy`. Live runs are capped per business per rolling day (`LIVE_RUNS_PER_DAY`, default 10) in addition to the three-concurrent-runs limit. Sample runs are not capped.
 
 ## 9. Deployment
 

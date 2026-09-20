@@ -1,7 +1,7 @@
 import type { Db } from "@/db/client";
 import { newId, nowIso } from "@/lib/ids";
 
-export type JobType = "run_checks" | "website_audit" | "analyze_run";
+export type JobType = "run_checks" | "website_audit" | "analyze_run" | "verify_action";
 
 export interface Job {
   id: string;

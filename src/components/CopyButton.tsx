@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text, label = "Copy", inline = false }: { text: string; label?: string; inline?: boolean }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   const copy = async () => {
     try {
@@ -14,8 +14,8 @@ export function CopyButton({ text }: { text: string }) {
     setTimeout(() => setState("idle"), 1800);
   };
   return (
-    <button type="button" onClick={copy} className="btn btn-sm absolute right-2 top-2" aria-live="polite">
-      {state === "copied" ? "Copied" : state === "failed" ? "Select and copy" : "Copy"}
+    <button type="button" onClick={copy} className={`btn btn-sm ${inline ? "" : "absolute right-2 top-2"}`} aria-live="polite">
+      {state === "copied" ? "Copied" : state === "failed" ? "Select and copy" : label}
     </button>
   );
 }

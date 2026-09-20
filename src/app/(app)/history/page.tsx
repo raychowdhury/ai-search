@@ -80,6 +80,8 @@ function Comparison({ business, a, b }: { business: Business; a: Run; b: Run }) 
       <p className="dt m-0">Earlier: {formatDate(earlier.finishedAt ?? earlier.createdAt)} · Later: {formatDate(later.finishedAt ?? later.createdAt)}</p>
       {!result.comparable ? (
         <Notice kind="warning">These checks are not directly comparable: {result.differences.join(", ")}. Both summaries are shown, but differences may come from the setup rather than from a change in the answers.</Notice>
+      ) : result.legacy ? (
+        <Notice kind="info">One of these checks predates measurement records (model and analysis settings), so a settings change between them cannot be ruled out.</Notice>
       ) : null}
       <div className="grid gap-3 text-[14px] sm:grid-cols-2">
         {[ra, rb].map((r, i) => (

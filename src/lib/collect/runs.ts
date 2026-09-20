@@ -22,7 +22,21 @@ export interface Run {
   finishedAt: string | null;
   summary: RunSummary | null;
   analysisNote: string | null;
+  /** Measurement configuration at creation; null on runs created before fingerprints existed. */
+  fingerprint: RunFingerprint | null;
   createdAt: string;
+}
+
+/** What was measured and how. Two runs compare only when fingerprints match. */
+export interface RunFingerprint {
+  collection: "api" | "demo";
+  /** Platform id -> configured model (or "unknown" when the provider chooses). */
+  models: Record<string, string>;
+  extractionModel: string | null;
+  extractionVersion: string;
+  promptTemplate: string;
+  repetition: number;
+  language: string;
 }
 
 export interface RunSummary {
@@ -32,7 +46,12 @@ export interface RunSummary {
   ownerMentioned: number;
   ownerRecommended: number;
   ownerCited: number;
-  competitorExtraction: "llm" | "demo" | "unavailable";
+  /** llm = every successful answer analyzed by the model; partial = some fell back; unavailable = none. */
+  competitorExtraction: "llm" | "demo" | "partial" | "unavailable";
+  /** Successful answers whose competitor extraction did not run or failed. */
+  extractionUnavailable: number;
+  /** Successful answers whose stored evidence could not be read. */
+  evidenceUnreadable: number;
 }
 
 export interface Check {
@@ -52,7 +71,14 @@ export interface Check {
   answerText: string | null;
   usage: Record<string, unknown> | null;
   dataMode: DataMode;
+  /** full: whole provider response stored; provider_truncated: raw provider body dropped, citations kept; unparseable: stored evidence cannot be read. */
+  evidenceStatus: EvidenceStatus;
+  analysisMethod: AnalysisMethod | null;
+  analysisNote: string | null;
 }
+
+export type EvidenceStatus = "full" | "provider_truncated" | "unparseable" | "missing";
+export type AnalysisMethod = "llm" | "demo" | "name_match" | "failed";
 
 interface RunRow {
   id: string;
@@ -67,6 +93,7 @@ interface RunRow {
   finished_at: string | null;
   summary: string | null;
   analysis_note: string | null;
+  fingerprint: string | null;
   created_at: string;
 }
 
@@ -87,6 +114,9 @@ interface CheckRow {
   answer_text: string | null;
   usage: string | null;
   data_mode: DataMode;
+  evidence_status: EvidenceStatus | null;
+  analysis_method: AnalysisMethod | null;
+  analysis_note: string | null;
 }
 
 function toRun(r: RunRow): Run {
@@ -103,6 +133,7 @@ function toRun(r: RunRow): Run {
     finishedAt: r.finished_at,
     summary: r.summary ? (JSON.parse(r.summary) as RunSummary) : null,
     analysisNote: r.analysis_note,
+    fingerprint: r.fingerprint ? (JSON.parse(r.fingerprint) as RunFingerprint) : null,
     createdAt: r.created_at,
   };
 }
@@ -125,13 +156,19 @@ function toCheck(r: CheckRow): Check {
     answerText: r.answer_text,
     usage: r.usage ? (JSON.parse(r.usage) as Record<string, unknown>) : null,
     dataMode: r.data_mode,
+    evidenceStatus: r.evidence_status ?? "full",
+    analysisMethod: r.analysis_method,
+    analysisNote: r.analysis_note,
   };
 }
 
 const RUN_COLS =
-  "id, business_id, question_set_id, question_set_version, platforms, location_context, data_mode, status, started_at, finished_at, summary, analysis_note, created_at";
+  "id, business_id, question_set_id, question_set_version, platforms, location_context, data_mode, status, started_at, finished_at, summary, analysis_note, fingerprint, created_at";
 const CHECK_COLS =
-  "id, run_id, question_id, question_text, platform, model, location_context, status, error_code, error_message, attempts, requested_at, completed_at, answer_text, usage, data_mode";
+  "id, run_id, question_id, question_text, platform, model, location_context, status, error_code, error_message, attempts, requested_at, completed_at, answer_text, usage, data_mode, evidence_status, analysis_method, analysis_note";
+
+/** Stored provider bodies larger than this keep only citations and hints (evidence_status = provider_truncated). */
+export const RAW_EVIDENCE_CAP = 200_000;
 
 export function createRun(
   db: Db,
@@ -139,7 +176,7 @@ export function createRun(
   questionSet: QuestionSet,
   platforms: PlatformId[],
   dataMode: DataMode,
-  options: { audit?: boolean } = {},
+  options: { audit?: boolean; fingerprint?: RunFingerprint } = {},
 ): Run {
   if (platforms.length === 0) throw new Error("At least one platform is required");
   const id = newId();
@@ -148,7 +185,7 @@ export function createRun(
   db.exec("BEGIN");
   try {
     db.prepare(
-      `INSERT INTO runs (${RUN_COLS}, updated_at) VALUES (?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,?,?)`,
+      `INSERT INTO runs (${RUN_COLS}, updated_at) VALUES (?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,?,?,?)`,
     ).run(
       id,
       business.id,
@@ -158,6 +195,7 @@ export function createRun(
       JSON.stringify(location),
       dataMode,
       "queued",
+      options.fingerprint ? JSON.stringify(options.fingerprint) : null,
       ts,
       ts,
     );
@@ -212,6 +250,15 @@ export function countActiveRuns(db: Db, businessId: string): number {
   return row.c;
 }
 
+/** Live runs created in the last 24 hours, for the abuse and cost cap. */
+export function countLiveRunsLastDay(db: Db, businessId: string): number {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const row = db
+    .prepare("SELECT COUNT(*) AS c FROM runs WHERE business_id = ? AND data_mode = 'live' AND created_at >= ?")
+    .get(businessId, since) as { c: number };
+  return row.c;
+}
+
 export function setRunStatus(
   db: Db,
   id: string,
@@ -249,13 +296,36 @@ export function markCheckRunning(db: Db, id: string): void {
 export function markCheckSuccess(
   db: Db,
   id: string,
-  result: { model: string; answerText: string; raw: unknown; usage?: Record<string, unknown> },
-): void {
+  result: { model: string; answerText: string; raw: RawEvidenceEnvelope; usage?: Record<string, unknown> },
+): EvidenceStatus {
   const ts = nowIso();
-  const rawJson = JSON.stringify(result.raw ?? null);
+  let envelope = result.raw;
+  let status: EvidenceStatus = "full";
+  let json = JSON.stringify(envelope);
+  if (json.length > RAW_EVIDENCE_CAP) {
+    // Keep the small, structured parts (citations, hints) intact and drop the
+    // provider body rather than truncating JSON into something unparseable.
+    envelope = { ...envelope, provider: null, providerTruncated: true, providerBytes: json.length };
+    status = "provider_truncated";
+    json = JSON.stringify(envelope);
+  }
   db.prepare(
-    `UPDATE checks SET status = 'success', model = ?, answer_text = ?, raw_response = ?, usage = ?, error_code = NULL, error_message = NULL, completed_at = ?, updated_at = ? WHERE id = ?`,
-  ).run(result.model, result.answerText, rawJson.slice(0, 200_000), result.usage ? JSON.stringify(result.usage) : null, ts, ts, id);
+    `UPDATE checks SET status = 'success', model = ?, answer_text = ?, raw_response = ?, usage = ?, evidence_status = ?, error_code = NULL, error_message = NULL, completed_at = ?, updated_at = ? WHERE id = ?`,
+  ).run(result.model, result.answerText, json, result.usage ? JSON.stringify(result.usage) : null, status, ts, ts, id);
+  return status;
+}
+
+/** Envelope stored in raw_response so analysis can be re-run offline. */
+export interface RawEvidenceEnvelope {
+  provider: unknown;
+  citations: Array<{ url: string; title?: string }>;
+  demoHints?: Array<{ name: string; recommended: boolean }>;
+  providerTruncated?: boolean;
+  providerBytes?: number;
+}
+
+export function setCheckAnalysis(db: Db, id: string, method: AnalysisMethod, note: string | null, evidenceStatus?: EvidenceStatus): void {
+  db.prepare("UPDATE checks SET analysis_method = ?, analysis_note = ?, evidence_status = COALESCE(?, evidence_status), updated_at = ? WHERE id = ?").run(method, note, evidenceStatus ?? null, nowIso(), id);
 }
 
 export function markCheckFailed(db: Db, id: string, code: string, message: string): void {

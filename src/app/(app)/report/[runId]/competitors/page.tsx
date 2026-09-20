@@ -15,6 +15,8 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ ru
       <ReportHeader run={run} current="competitors" />
       {run.summary?.competitorExtraction === "unavailable" ? (
         <div className="mb-4"><Notice kind="warning">We could not identify competitors for this check because the analysis service was not available. Only your own business was detected.</Notice></div>
+      ) : run.summary?.competitorExtraction === "partial" ? (
+        <div className="mb-4"><Notice kind="warning">Competitor extraction did not run for {run.summary.extractionUnavailable} of {n} answers, so the counts below may be incomplete. Those answers are not evidence of &ldquo;no competitors&rdquo;.</Notice></div>
       ) : null}
       <div className="card mb-4 gap-2 p-4">
         <span className="font-medium">{business.name} <span className="m2">(you)</span></span>

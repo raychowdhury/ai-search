@@ -63,9 +63,12 @@ export function AnswerCard({ check, mentions, citations, anchor }: { check: Chec
               <Highlighted text={check.answerText ?? ""} mentions={mentions} />
             </p>
           </details>
+          {check.analysisNote ? <p className="dt m-0">{check.analysisNote}</p> : null}
           <div>
             <p className="k m-0">Sources cited</p>
-            {citations.length ? (
+            {check.evidenceStatus === "unparseable" || check.evidenceStatus === "missing" ? (
+              <p className="m2 m-0 mt-2 text-[13px]">Source evidence for this answer could not be read, so we cannot say what it cited. Run a new check to collect it again.</p>
+            ) : citations.length ? (
               <ul className="m-0 mt-2 flex list-none flex-col gap-1.5 p-0 text-[13px]">
                 {citations.map((c) => (
                   <li key={c.id} className="row flex-wrap gap-2">

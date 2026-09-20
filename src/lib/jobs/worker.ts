@@ -7,14 +7,14 @@ import {
 } from "@/lib/collect/runs";
 import { getAdapter } from "@/lib/platforms/registry";
 import { PlatformError } from "@/lib/platforms/types";
-import type { RawEnvelope } from "@/lib/analyze/run";
 import { analyzeRun } from "@/lib/analyze/run";
 import { claudeExtractor, isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
 import { computeRunMetrics } from "@/lib/metrics/compute";
 import { mentionsForRun, citationsForRun } from "@/lib/analyze/store";
 import { runWebsiteAudit, latestAudit } from "@/lib/audit/run";
 import { buildRecommendations, topThree } from "@/lib/recommend/rules";
-import { saveRecommendations } from "@/lib/recommend/store";
+import { saveRecommendations, getRecommendation, setVerification } from "@/lib/recommend/store";
+import { logEvent } from "@/lib/events";
 import { runScheduler } from "./scheduler";
 
 const MAX_CHECK_ATTEMPTS = 3;
@@ -26,6 +26,8 @@ export interface WorkerDeps {
   /** Override for tests; defaults to the registry. */
   adapterFor?: typeof getAdapter;
   extractorEnabled?: boolean;
+  /** Override for tests so verification does not fetch the network. */
+  auditRunner?: typeof runWebsiteAudit;
 }
 
 export async function processJob(job: Job, deps: WorkerDeps = {}): Promise<void> {
@@ -39,11 +41,14 @@ export async function processJob(job: Job, deps: WorkerDeps = {}): Promise<void>
       const business = getBusinessById(db, String(job.payload.businessId));
       if (!business) return;
       const runId = job.payload.runId ? String(job.payload.runId) : null;
-      await runWebsiteAudit(db, business, runId);
+      await (deps.auditRunner ?? runWebsiteAudit)(db, business, runId);
       return;
     }
     case "analyze_run":
       await analyze(db, String(job.payload.runId), deps, log);
+      return;
+    case "verify_action":
+      await verifyAction(db, String(job.payload.recommendationId), deps, log);
       return;
     default:
       throw new Error(`Unknown job type ${String(job.type)}`);
@@ -67,8 +72,9 @@ async function runChecks(db: Db, runId: string, deps: WorkerDeps, log: (m: strin
     const adapter = adapterFor(check.platform);
     try {
       const answer = await adapter.ask({ question: check.questionText, location: check.locationContext, business: snapshot });
-      const envelope: RawEnvelope = { provider: answer.raw, citations: answer.citations, ...(answer.demoHints ? { demoHints: answer.demoHints } : {}) };
-      markCheckSuccess(db, check.id, { model: answer.model, answerText: answer.answerText, raw: envelope, usage: answer.usage });
+      const envelope = { provider: answer.raw, citations: answer.citations, ...(answer.demoHints ? { demoHints: answer.demoHints } : {}) };
+      const status = markCheckSuccess(db, check.id, { model: answer.model, answerText: answer.answerText, raw: envelope, usage: answer.usage });
+      if (status !== "full") log(`check ${check.id}: provider body exceeded the evidence cap; citations kept, body dropped`);
     } catch (err) {
       const pe = err instanceof PlatformError ? err : new PlatformError("unknown_error", err instanceof Error ? err.message : String(err), false);
       const attempts = check.attempts + 1;
@@ -89,7 +95,6 @@ async function runChecks(db: Db, runId: string, deps: WorkerDeps, log: (m: strin
       await Promise.all(queued.slice(i, i + CHECK_CONCURRENCY).map(processOne));
     }
   }
-  // Anything still queued after the retry rounds is recorded as failed, never silently dropped.
   for (const c of getChecksForRun(db, runId)) {
     if (c.status === "queued" || c.status === "running") markCheckFailed(db, c.id, "gave_up", "Check did not complete after retries");
   }
@@ -104,22 +109,66 @@ async function analyze(db: Db, runId: string, deps: WorkerDeps, log: (m: string)
   const extractorEnabled = deps.extractorEnabled ?? isClaudeExtractorConfigured();
   const summary = await analyzeRun(db, business, runId, { extractor: extractorEnabled && run.dataMode === "live" ? claudeExtractor : undefined, log });
   const checks = getChecksForRun(db, runId);
-  const metrics = computeRunMetrics(checks, mentionsForRun(db, runId), citationsForRun(db, runId));
+  const citations = citationsForRun(db, runId);
+  const metrics = computeRunMetrics(checks, mentionsForRun(db, runId), citations);
   const audit = latestAudit(db, business.id, runId) ?? latestAudit(db, business.id);
   const recs = topThree(
     buildRecommendations({
       business,
       metrics,
+      citations,
       dataMode: run.dataMode,
       audit: audit ? { id: audit.id, status: audit.status, pages: audit.pages, findings: audit.findings } : null,
     }),
   );
-  saveRecommendations(db, runId, business.id, recs);
-  const note =
-    summary.competitorExtraction === "unavailable" && summary.successfulChecks > 0
-      ? "Competitor extraction was unavailable for this check (no analysis model configured). Only your own business was detected."
-      : null;
-  setRunStatus(db, runId, "complete", { summary, ...(note ? { analysisNote: note } : {}) });
+  const saved = saveRecommendations(db, runId, business.id, recs);
+  for (const ruleId of saved.recurred) logEvent(db, business.id, "recurrence_detected", { runId, ruleId });
+  const notes: string[] = [];
+  if (summary.successfulChecks > 0 && summary.competitorExtraction === "unavailable") {
+    notes.push("Competitor extraction was unavailable for this check, so only your own business was detected in the answers.");
+  } else if (summary.competitorExtraction === "partial") {
+    notes.push(`Competitor extraction did not run for ${summary.extractionUnavailable} of ${summary.successfulChecks} answers; competitor counts may be incomplete.`);
+  }
+  if (summary.evidenceUnreadable > 0) {
+    notes.push(`Source evidence could not be read for ${summary.evidenceUnreadable} answer${summary.evidenceUnreadable === 1 ? "" : "s"}; those are left out of the "website cited" count.`);
+  }
+  setRunStatus(db, runId, "complete", { summary, ...(notes.length ? { analysisNote: notes.join(" ") } : {}) });
+}
+
+/**
+ * Verifies an action the owner marked done. Audit-based actions re-read the site
+ * and check the relevant rules; answer-based actions cannot be verified without a
+ * new check and are recorded as such. A failed fetch is "unable to verify", never success.
+ */
+async function verifyAction(db: Db, recommendationId: string, deps: WorkerDeps, log: (m: string) => void): Promise<void> {
+  const rec = getRecommendation(db, recommendationId);
+  if (!rec) return;
+  const business = getBusinessById(db, rec.businessId);
+  if (!business) return;
+  if (rec.verifyRules.length === 0) {
+    setVerification(db, rec.id, "unable_to_verify", "This action can only be checked by running a new check and reading the answers again.");
+    logEvent(db, business.id, "verification_failed", { recommendationId: rec.id, reason: "not_verifiable_by_audit" });
+    return;
+  }
+  const audit = await (deps.auditRunner ?? runWebsiteAudit)(db, business, null);
+  if (audit.status !== "complete") {
+    setVerification(db, rec.id, "unable_to_verify", `We could not read your website to check this (${audit.pages[0]?.error ?? "unknown reason"}).`);
+    logEvent(db, business.id, "verification_failed", { recommendationId: rec.id, reason: "fetch_failed" });
+    return;
+  }
+  const remaining = rec.verifyRules.filter((ruleId) => {
+    const finding = audit.findings.find((f) => f.ruleId === ruleId);
+    return finding && finding.severity !== "good";
+  });
+  if (remaining.length === 0) {
+    setVerification(db, rec.id, "verified_fixed", `A fresh read of your site no longer shows this issue (${rec.verifyRules.length} check${rec.verifyRules.length === 1 ? "" : "s"} passed).`);
+    logEvent(db, business.id, "action_verified", { recommendationId: rec.id, ruleId: rec.ruleId });
+  } else {
+    const titles = remaining.map((r) => audit.findings.find((f) => f.ruleId === r)?.title ?? r);
+    setVerification(db, rec.id, "still_observed", `A fresh read of your site still shows: ${titles.join("; ")}.`);
+    logEvent(db, business.id, "verification_failed", { recommendationId: rec.id, reason: "still_observed", remaining });
+  }
+  log(`verified action ${rec.id}: ${remaining.length === 0 ? "fixed" : "still observed"}`);
 }
 
 /** Runs one worker tick: claims and processes at most one job. Returns true when a job ran. */

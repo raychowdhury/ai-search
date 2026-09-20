@@ -46,7 +46,12 @@ export interface RunMetrics {
   pendingChecks: number;
   mentionRate: Ratio;
   recommendationRate: Ratio;
+  /** Denominator excludes successful checks whose source evidence is unreadable. */
   citationRate: Ratio;
+  /** Successful checks whose competitor extraction did not run or failed. Competitor counts exclude them from nothing, but the UI must say so. */
+  extractionUnavailable: number;
+  /** Successful checks whose stored evidence could not be read. */
+  evidenceUnreadable: number;
   competitors: CompetitorStat[];
   topDomains: DomainStat[];
   perPlatform: Record<string, { successful: number; failed: number; mentionRate: Ratio; recommendationRate: Ratio; citationRate: Ratio }>;
@@ -62,8 +67,12 @@ export function computeRunMetrics(checks: Check[], mentions: MentionRecord[], ci
   const pending = checks.filter((c) => c.status === "queued" || c.status === "running");
 
   const ownerMentioned = (c: Check) => (mentionsByCheck.get(c.id) ?? []).some((m) => m.isOwner);
-  const ownerRecommended = (c: Check) => (mentionsByCheck.get(c.id) ?? []).some((m) => m.isOwner && m.isRecommended);
+  const ownerRecommended = (c: Check) => (mentionsByCheck.get(c.id) ?? []).some((m) => m.isOwner && m.stance === "positive");
   const ownerCited = (c: Check) => (citationsByCheck.get(c.id) ?? []).some((ci) => ci.isOwnerDomain);
+  const evidenceReadable = (c: Check) => c.evidenceStatus !== "unparseable" && c.evidenceStatus !== "missing";
+  const withEvidence = successful.filter(evidenceReadable);
+  const extractionUnavailable = successful.filter((c) => c.analysisMethod === "name_match" || c.analysisMethod === "failed").length;
+  const evidenceUnreadable = successful.length - withEvidence.length;
 
   const ratio = (subset: Check[], pred: (c: Check) => boolean): Ratio => ({
     numerator: subset.filter(pred).length,
@@ -86,7 +95,7 @@ export function computeRunMetrics(checks: Check[], mentions: MentionRecord[], ci
         stat.checkIds.push(c.id);
         if (!stat.questionIds.includes(c.questionId)) stat.questionIds.push(c.questionId);
       }
-      if (m.isRecommended && !seenInCheck.has(`${m.normalizedName}:rec`)) {
+      if (m.stance === "positive" && !seenInCheck.has(`${m.normalizedName}:rec`)) {
         seenInCheck.add(`${m.normalizedName}:rec`);
         stat.recommended += 1;
       }
@@ -115,7 +124,7 @@ export function computeRunMetrics(checks: Check[], mentions: MentionRecord[], ci
       failed: failed.filter((c) => c.platform === platform).length,
       mentionRate: ratio(s, ownerMentioned),
       recommendationRate: ratio(s, ownerRecommended),
-      citationRate: ratio(s, ownerCited),
+      citationRate: ratio(s.filter(evidenceReadable), ownerCited),
     };
   }
 
@@ -138,7 +147,9 @@ export function computeRunMetrics(checks: Check[], mentions: MentionRecord[], ci
     pendingChecks: pending.length,
     mentionRate: ratio(successful, ownerMentioned),
     recommendationRate: ratio(successful, ownerRecommended),
-    citationRate: ratio(successful, ownerCited),
+    citationRate: ratio(withEvidence, ownerCited),
+    extractionUnavailable,
+    evidenceUnreadable,
     competitors,
     topDomains,
     perPlatform,

@@ -1,11 +1,15 @@
 import dns from "node:dns/promises";
 import { isIP } from "node:net";
+import { Agent, fetch as undiciFetch, type Dispatcher } from "undici";
 import { isPrivateIp, parsePublicHttpUrl } from "@/lib/url/safety";
 
 /**
  * Fetches a public web page with SSRF protections:
  * - http(s) only, public hostnames only (see parsePublicHttpUrl)
  * - DNS resolved first; every resolved address must be public
+ * - the connection is pinned to the validated address (a per-request dispatcher
+ *   whose lookup returns it), so a DNS answer cannot change between validation
+ *   and connect; TLS still verifies the original hostname
  * - redirects followed manually (max 5) and re-validated each hop
  * - size cap (2 MB), time cap (10 s), HTML/text only
  * - robots.txt disallow rules honoured for our user agent
@@ -43,27 +47,56 @@ export const systemResolver: Resolver = {
   },
 };
 
+export type PinnedFetch = (url: string, init: RequestInit & { pinnedAddress: string }) => Promise<Response>;
+
 export interface FetchDeps {
   resolver?: Resolver;
-  fetchImpl?: typeof fetch;
+  /** Test seam. Receives the validated address the connection must use. */
+  fetchImpl?: PinnedFetch;
   robots?: RobotsRules | null;
 }
 
-async function assertPublicHost(hostname: string, resolver: Resolver): Promise<string | null> {
+/** Builds a dispatcher whose DNS lookup always returns the validated address. */
+export function pinnedDispatcher(address: string): Dispatcher {
+  const family = isIP(address) === 6 ? 6 : 4;
+  return new Agent({
+    connect: {
+      lookup: (_hostname, options, callback) => {
+        const opts = options as { all?: boolean };
+        if (opts.all) (callback as unknown as (err: null, addresses: Array<{ address: string; family: number }>) => void)(null, [{ address, family }]);
+        else (callback as unknown as (err: null, address: string, family: number) => void)(null, address, family);
+      },
+    },
+  });
+}
+
+const defaultFetch: PinnedFetch = async (url, init) => {
+  const { pinnedAddress, ...rest } = init;
+  const dispatcher = pinnedDispatcher(pinnedAddress);
+  try {
+    const res = await undiciFetch(url, { ...(rest as Parameters<typeof undiciFetch>[1]), dispatcher });
+    return res as unknown as Response;
+  } finally {
+    // The agent holds the socket until the body is consumed; closing lazily avoids cutting reads short.
+    setTimeout(() => void dispatcher.close().catch(() => undefined), TIMEOUT_MS + 1000).unref();
+  }
+};
+
+async function resolvePublicHost(hostname: string, resolver: Resolver): Promise<{ address: string } | { error: "dns_failed" | "blocked_private_network" }> {
   let addresses: string[];
   try {
     addresses = await resolver.resolve(hostname);
   } catch {
-    return "dns_failed";
+    return { error: "dns_failed" };
   }
-  if (addresses.length === 0) return "dns_failed";
-  if (addresses.some((a) => isPrivateIp(a))) return "blocked_private_network";
-  return null;
+  if (addresses.length === 0) return { error: "dns_failed" };
+  if (addresses.some((a) => isPrivateIp(a))) return { error: "blocked_private_network" };
+  return { address: addresses[0] };
 }
 
 export async function safeFetch(inputUrl: string, deps: FetchDeps = {}): Promise<FetchResult> {
   const resolver = deps.resolver ?? systemResolver;
-  const fetchImpl = deps.fetchImpl ?? fetch;
+  const fetchImpl = deps.fetchImpl ?? defaultFetch;
   let current = inputUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const check = parsePublicHttpUrl(current);
@@ -72,9 +105,12 @@ export async function safeFetch(inputUrl: string, deps: FetchDeps = {}): Promise
     if (deps.robots && !deps.robots.isAllowed(url.pathname + url.search)) {
       return { ok: false, url: inputUrl, reason: "The site's robots.txt asks crawlers not to read this page", code: "robots_disallowed" };
     }
-    const hostProblem = await assertPublicHost(check.hostname, resolver);
-    if (hostProblem === "dns_failed") return { ok: false, url: inputUrl, reason: "We could not look up that web address", code: "dns_failed" };
-    if (hostProblem) return { ok: false, url: inputUrl, reason: "That address points to a private or internal network", code: "blocked_private_network" };
+    const resolved = await resolvePublicHost(check.hostname, resolver);
+    if ("error" in resolved) {
+      return resolved.error === "dns_failed"
+        ? { ok: false, url: inputUrl, reason: "We could not look up that web address", code: "dns_failed" }
+        : { ok: false, url: inputUrl, reason: "That address points to a private or internal network", code: "blocked_private_network" };
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -85,6 +121,7 @@ export async function safeFetch(inputUrl: string, deps: FetchDeps = {}): Promise
         redirect: "manual",
         headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.1" },
         signal: controller.signal,
+        pinnedAddress: resolved.address,
       });
     } catch (err) {
       clearTimeout(timer);

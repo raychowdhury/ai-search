@@ -31,7 +31,7 @@ Primary navigation (left sidebar on desktop, bottom tab bar on mobile): Dashboar
 
 ## 3. Onboarding
 
-Single page with four short groups and a sticky "Save and continue" button.
+Single page with five short groups and a sticky "Save and continue" button. The fifth group, "Public details", is optional and progressive: phone, opening hours, where customers are served (at my location, at theirs, both, prefer not to say), booking link, and up to five priority services. Copy explains that unconfirmed fields stay out of suggested wording.
 
 1. **Your business**: name, other names customers use (optional), category (free text with suggestions), website.
 2. **Where you are**: city, state or region, country, service area in the owner's words ("Within 20 miles of downtown Springfield").
@@ -78,7 +78,7 @@ Grouped by "Services", "Location", "Contact", "Technical". Each finding: status 
 
 ### Actions
 
-Ranked list. Each action page: title, "Why we suggest this" with quoted evidence linking to answers or findings, "Suggested wording" in a copy-able block, effort estimate, status control (Not started, In progress, Done, Skipped), date of status change. Note under every action: "This is an improvement opportunity based on what we observed. AI answers can change for many reasons."
+Ranked list, one primary action first. Each action shows the owner workflow status (Not started, In progress, Done, Skipped) and, separately, the verification state: Checking, Verified fixed, Still observed, Could not verify, Came back. Suggested wording is labeled either "built only from details you confirmed" or "draft, not ready to publish: still needs …". A "Copy instructions for your web person" button exports title, why, evidence, wording, and the standing caveat as plain text. Each action page: title, "Why we suggest this" with quoted evidence linking to answers or findings, "Suggested wording" in a copy-able block, effort estimate, status control (Not started, In progress, Done, Skipped), date of status change. Note under every action: "This is an improvement opportunity based on what we observed. AI answers can change for many reasons."
 
 ### History
 
@@ -125,9 +125,10 @@ Table of runs: date, platforms, questions version, successful/failed, mentioned 
 |---|---|---|---|
 | Dashboard | Skeleton cards | "No checks yet. Run your first check." with button | "We couldn't load your latest check. Try again." |
 | Run in progress | Progress list per question with states queued, running, done, failed, with elapsed time | n/a | Per-check failure shown inline with plain reason; run still completes |
+| Answers (unreadable evidence) | — | "Source evidence for this answer could not be read, so we cannot say what it cited." | — |
 | Answers | Skeleton cards | "No successful answers in this check." with failed reasons listed | Provider error text mapped to plain reasons: "The platform was busy", "Search was not available" |
 | Competitors | Skeleton table | "No other businesses were named in these answers." | "Competitor analysis was unavailable for this check." |
-| Website audit | Page-by-page progress | "Add your website to get an audit." | "We couldn't reach your website (reason). Check the address and try again." |
+| Website audit | Page-by-page progress | "Add your website to get an audit." | "We couldn't reach your website (reason). Check the address and try again." Script-only sites get "we could read very little text" and findings are framed as "in the N pages we read", never as whole-site absence. |
 | Actions | Skeleton rows | "Actions appear after your first completed check." | n/a |
 | History | Skeleton table | "Your checks will appear here." | "Couldn't load history." |
 

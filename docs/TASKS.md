@@ -1,6 +1,6 @@
 # Tasks
 
-Status legend: `pending` · `in progress` · `blocked` · `complete`. Updated 2026-09-19 (end of day).
+Status legend: `pending` · `in progress` · `blocked` · `complete`. Updated 2026-09-20.
 
 Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level parsing only; 7.4 (live verification) stays blocked until keys exist. 8.1: login and run rate limits and same-site cookies are in; CSP headers are not yet added. 8.3: Dockerfile and health endpoint exist; no host chosen. 8.4: done via seed script against the built server (worker, audit, all screens, auth redirects, history comparison verified with curl); browser automation is 9.2.
 
@@ -82,7 +82,7 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 
 | ID | Task | Status | Acceptance criteria |
 |---|---|---|---|
-| 8.1 | Security headers, CSRF origin check, rate limits | in progress | Verified with tests and manual check |
+| 8.1 | Security headers, CSRF origin check, rate limits | complete | Verified with tests and manual check |
 | 8.2 | Account deletion | complete | All user-scoped rows removed |
 | 8.3 | Deployment config (standalone build, volume, env, health) | complete | Deploys to one host; health endpoint green |
 | 8.4 | Smoke test of the full flow in demo mode | complete | Passes in CI |
@@ -91,10 +91,10 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 
 | ID | Task | Status | Acceptance criteria |
 |---|---|---|---|
-| 9.1 | Content security policy and security headers in next.config | pending | Headers present on every response; app still works |
+| 9.1 | Content security policy and security headers in next.config | complete | Headers present on every response; app still works |
 | 9.2 | Browser smoke test (Playwright) for signup → onboarding → questions → sample run → dashboard → mark action done | pending | Passes locally and in CI |
 | 9.3 | Email verification and password reset (needs email provider decision) | blocked | Open question 4 in MEMORY.md |
-| 9.4 | Close DNS rebinding gap in safe fetcher with a connect-time IP check | pending | Test with a resolver that returns a public then private address |
+| 9.4 | Close DNS rebinding gap in safe fetcher with a connect-time IP check | complete | Test with a resolver that returns a public then private address |
 | 9.5 | Nightly SQLite backup job for production | pending | Backup file appears in object storage |
 | 9.6 | Owner-visible cost estimate before a live run (from ARCHITECTURE cost table and stored usage) | pending | Estimate shown on the questions page |
 
@@ -109,3 +109,22 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | 10.5 | Cost estimate and confirmation before live checks | complete | Shown only when a live platform is configured |
 | 10.6 | Loading skeletons on dashboard and report routes (loading.tsx) | pending | Skeleton matches mockup 2e |
 | 10.7 | Dark theme review on a real device | pending | Contrast checked for chips and notices |
+
+## Phase 11: Handoff milestones (docs/research/CLAUDE_CODE_HANDOFF.md), 2026-09-20
+
+| ID | Task | Status | Evidence |
+|---|---|---|---|
+| M0 | Baseline recorded: HEAD f816344, 73 tests, typecheck, lint, build; ao-search redirects to ai-search | complete | MEMORY.md status |
+| M1 | No invented facts in suggested copy; audit and recommendation copy says what was observed | complete | tests/recommend.test.ts "never invents business facts" |
+| M2 | Full-name grounding in evidence spans; stance positive/negative/neutral/unknown; per-answer analysis method and notes; partial extraction reported | complete | tests/analyze.test.ts reproduction cases; worker summary |
+| M3 | Evidence cap keeps citations and marks provider_truncated; unparseable evidence reported and excluded from citation denominator; typed citation references | complete | tests/worker.test.ts truncation and damaged-evidence cases |
+| M4 | Connection pinned to validated address; platform health shows last live success and failure; CSP and headers; daily live-run cap; smoke script persists evidence | complete (live smoke blocked: no keys) | tests/crawl.test.ts pinning test |
+| M5 | Owner-confirmed facts (phone, hours, business type, booking, priority services) with confirmation timestamp; audit compares phone, respects service-area, flags script-only sites | complete | tests/questions-facts.test.ts |
+| M6 | Verification states, verify_action job, recurrence by scope, export instructions, re-check button | complete | tests/worker.test.ts verification cases; scripts/verify-flow.mts |
+| M7 | Question intents and gating (weekend, same-day), priority services first, measurement fingerprints, legacy-run limitation | complete | tests/compare.test.ts, tests/questions-facts.test.ts |
+| M8 | Business-level pilot events | complete | src/lib/events.ts |
+| M4b | Live verification with real keys | blocked | needs ANTHROPIC_API_KEY, OPENAI_API_KEY, or PERPLEXITY_API_KEY |
+| M7b | Repeatability experiment (bounded cost) | blocked | needs keys and a cost cap decision |
+| M8b | Source-opportunity classification, consumer-surface observations, profile integrations | pending | feasibility decision first |
+| M6b | Browser-level test of the correction workflow including a failure state | pending | Playwright not yet in CI |
+| M4c | Backup restore drill, account lockout recovery (password reset) | blocked | email provider decision |
