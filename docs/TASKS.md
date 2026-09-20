@@ -108,7 +108,7 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | 10.4 | Restyle answers, competitors, website, actions, history, settings, onboarding, questions, run, auth | complete | No pre-redesign color classes remain |
 | 10.5 | Cost estimate and confirmation before live checks | complete | Shown only when a live platform is configured |
 | 10.6 | Loading skeletons on dashboard and report routes (loading.tsx) | pending | Skeleton matches mockup 2e |
-| 10.7 | Dark theme review on a real device | pending | Contrast checked for chips and notices |
+| 10.7 | Dark theme review on a real device | in progress | Owner can now choose Light, Dark, or System (2026-09-20); reviewed in screenshots, device review pending |
 
 ## Phase 11: Handoff milestones (docs/research/CLAUDE_CODE_HANDOFF.md), 2026-09-20
 

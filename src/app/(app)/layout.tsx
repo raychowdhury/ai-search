@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import { getBusinessForUser } from "@/lib/business/repo";
 import { logoutAction } from "@/server/actions/auth";
 import { NavLinks } from "./NavLinks";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -27,13 +28,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <form action={logoutAction}>
             <button type="submit" className="navl w-full text-left">Sign out</button>
           </form>
+          <div className="px-2.5 pt-2"><ThemeToggle /></div>
         </div>
       </aside>
 
       {/* Compact top bar (phone and tablet) */}
       <header className="row h-[52px] justify-between border-b border-line px-4 lg:hidden">
         <Link href="/dashboard" className="text-fg font-semibold tracking-tight">Mentioned</Link>
-        <form action={logoutAction}><button type="submit" className="m2 flex min-h-11 items-center text-[13px]">Sign out</button></form>
+        <span className="row gap-3">
+          <ThemeToggle compact />
+          <form action={logoutAction}><button type="submit" className="m2 flex min-h-11 items-center text-[13px]">Sign out</button></form>
+        </span>
       </header>
 
       <main className="mx-auto w-full max-w-[1024px] flex-1 px-4 pb-24 pt-5 sm:px-8 lg:pb-10 lg:pt-8">{children}</main>

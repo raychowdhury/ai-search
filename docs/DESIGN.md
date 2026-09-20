@@ -104,6 +104,10 @@ Table of runs: date, platforms, questions version, successful/failed, mentioned 
 - Spacing: 8px grid. Cards with 1px border, 8px radius, no heavy shadows.
 - Charts: only simple horizontal bars with the numbers written next to them. No pie charts, no gauges, no "scores".
 
+## 8b. Appearance
+
+Light, Dark, and System are offered as a three-way control in the sidebar (desktop), the compact top bar (phone), the landing and auth navs, and an Appearance card in Settings. The choice is a per-browser convenience stored in localStorage; System follows the device setting. A pre-paint script applies the saved choice so there is no flash. Both themes are built from the same tokens (docs/ARCHITECTURE.md, globals.css).
+
 ## 9. Responsive behavior
 
 - Breakpoints: mobile under 640px, tablet 640 to 1024, desktop above.

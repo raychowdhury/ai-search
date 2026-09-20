@@ -5,6 +5,7 @@ import { platformHealth } from "@/server/platformHealth";
 import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
 import { setScheduleAction, deleteAccountAction } from "@/server/actions/business";
 import { PageTitle, Card, CardTitle, Notice, Button, Chip, inputClass, formatDate } from "@/components/ui";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
   const { business } = await requireBusiness();
@@ -50,6 +51,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </ul>
           <p className="row m-0 gap-2 text-[14px]">Competitor extraction {isClaudeExtractorConfigured() ? <Chip tone="good">available</Chip> : <Chip tone="warn">unavailable</Chip>}</p>
           <p className="dt m-0">A key being present is not proof the integration works; &ldquo;last live answer&rdquo; is. Keys are set in the server environment. Answers come from each platform&apos;s API, which is not identical to its consumer app.</p>
+        </Card>
+
+        <Card className="gap-2">
+          <CardTitle>Appearance</CardTitle>
+          <ThemeToggle />
+          <p className="dt m-0">Saved in this browser only. &ldquo;System&rdquo; follows your device setting.</p>
         </Card>
 
         <Card className="gap-3">

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/auth";
 import { LinkButton, Chip } from "@/components/ui";
 import { IconWarn } from "@/components/icons";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const EXPECT = [
   { n: "01", title: "No rankings, no scores", body: "Every number reads “mentioned in 3 of 13 answers”. We never guarantee placement." },
@@ -43,6 +44,7 @@ export default async function Landing() {
         <a href="#faq" className="m2 hidden sm:inline">Questions</a>
         <a href="#faq" className="m2 hidden sm:inline">Pricing</a>
         <Link href="/login" className="m2 hidden sm:inline">Sign in</Link>
+        <span className="hidden sm:inline-flex"><ThemeToggle compact /></span>
         <LinkButton href="/signup" size="sm">Create an account</LinkButton>
       </nav>
 
@@ -141,6 +143,7 @@ export default async function Landing() {
         <a href="mailto:hello@mentioned.example" className="m2">hello@mentioned.example</a>
         <span className="min-w-[200px] flex-1">We only store your business details, the answers we collect, and an audit of your own public site.</span>
         <span className="sr-only"><IconWarn /></span>
+        <span className="sm:hidden"><ThemeToggle compact /></span>
       </footer>
     </div>
   );

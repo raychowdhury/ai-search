@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { Button, Field, Notice, inputClass } from "@/components/ui";
 import type { AuthState } from "@/server/actions/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AuthForm({ mode, action, next }: { mode: "login" | "signup"; action: (prev: AuthState, data: FormData) => Promise<AuthState>; next?: string }) {
   const [state, formAction, pending] = useActionState(action, {});
@@ -11,7 +12,10 @@ export function AuthForm({ mode, action, next }: { mode: "login" | "signup"; act
     <div className="flex flex-1 flex-col">
       <nav className="row h-14 justify-between border-b border-line px-5 sm:h-16 sm:px-16">
         <Link href="/" className="text-fg text-[16px] font-semibold tracking-tight">Mentioned</Link>
-        {mode === "signup" ? <Link href="/login" className="m2 text-[14px]">Sign in</Link> : <Link href="/signup" className="m2 text-[14px]">Create an account</Link>}
+        <span className="row gap-4">
+          <ThemeToggle compact />
+          {mode === "signup" ? <Link href="/login" className="m2 text-[14px]">Sign in</Link> : <Link href="/signup" className="m2 text-[14px]">Create an account</Link>}
+        </span>
       </nav>
       <main className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center px-5 py-12">
         <h1 className="mb-1 text-[26px] tracking-[-0.03em]">{mode === "signup" ? "Create your account" : "Sign in"}</h1>
