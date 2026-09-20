@@ -13,7 +13,7 @@ export function AuthForm({ mode, action, next }: { mode: "login" | "signup"; act
       <nav className="row h-14 justify-between border-b border-line px-5 sm:h-16 sm:px-16">
         <Link href="/" className="text-fg text-[16px] font-semibold tracking-tight">Mentioned</Link>
         <span className="row gap-4">
-          <ThemeToggle compact />
+          <ThemeToggle />
           {mode === "signup" ? <Link href="/login" className="m2 text-[14px]">Sign in</Link> : <Link href="/signup" className="m2 text-[14px]">Create an account</Link>}
         </span>
       </nav>

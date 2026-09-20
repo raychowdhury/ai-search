@@ -28,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <form action={logoutAction}>
             <button type="submit" className="navl w-full text-left">Sign out</button>
           </form>
-          <div className="px-2.5 pt-2"><ThemeToggle /></div>
+          <div className="row justify-between px-2.5 pt-2"><span className="dt">Appearance</span><ThemeToggle /></div>
         </div>
       </aside>
 
@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="row h-[52px] justify-between border-b border-line px-4 lg:hidden">
         <Link href="/dashboard" className="text-fg font-semibold tracking-tight">Mentioned</Link>
         <span className="row gap-3">
-          <ThemeToggle compact />
+          <ThemeToggle />
           <form action={logoutAction}><button type="submit" className="m2 flex min-h-11 items-center text-[13px]">Sign out</button></form>
         </span>
       </header>
