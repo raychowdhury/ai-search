@@ -17,6 +17,7 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   async redirects() {
     // "How it works" is folded into the landing page (design decision, mockups v2).
     return [{ source: "/how-it-works", destination: "/#how-it-works", permanent: false }];
