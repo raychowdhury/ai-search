@@ -137,7 +137,7 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | 12.1 | Scheduled runs bypassed cost controls | complete | Scheduler now checks the daily cap and active runs and logs run_started; tests/privacy-limits.test.ts |
 | 12.2 | Malformed LIVE_RUNS_PER_DAY disabled the cap | complete | parseLiveRunsPerDay falls back to 10; tested |
 | 12.3 | No backup or restore | complete | src/db/backup.ts, pnpm db:backup / db:restore / db:drill, worker daily backup with BACKUP_DIR; tested |
-| 12.4 | No password reset or email verification | complete (transport unverified) | Single-use tokens, /forgot-password, /reset-password, /verify-email, settings card; Resend transport written from its docs but not exercised live; log transport in dev |
+| 12.4 | No password reset or email verification | complete (Resend transport verified 2026-09-21 with the test sender; domain verification pending) | Single-use tokens, /forgot-password, /reset-password, /verify-email, settings card; Resend transport written from its docs but not exercised live; log transport in dev |
 | 12.5 | Privacy boundary was convention-based | complete | AskInput no longer carries the business; demo context passed only to the demo adapter; tests assert live request bodies |
 | 12.6 | No graceful shutdown or worker health alerting | complete | Heartbeat in meta table, /api/health 503 when stale, SIGTERM/SIGINT drain, structured JSON logs, ALERT_WEBHOOK_URL |
 | 12.7 | Live provider behavior unverified | partially complete | OpenAI verified live 2026-09-21 (smoke plus a 12-question run, $0.22); Anthropic and Perplexity still need keys |
