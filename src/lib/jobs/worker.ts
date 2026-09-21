@@ -9,6 +9,7 @@ import { getAdapter } from "@/lib/platforms/registry";
 import { PlatformError } from "@/lib/platforms/types";
 import { analyzeRun } from "@/lib/analyze/run";
 import { selectExtractor } from "@/lib/analyze/extractorSelect";
+import { recordProviderCall, wouldExceedCap, capStatus } from "@/lib/platforms/usage";
 import { computeRunMetrics } from "@/lib/metrics/compute";
 import { mentionsForRun, citationsForRun } from "@/lib/analyze/store";
 import { runWebsiteAudit, latestAudit } from "@/lib/audit/run";
@@ -74,7 +75,13 @@ async function runChecks(db: Db, runId: string, deps: WorkerDeps, log: (m: strin
   const processOne = async (check: Check) => {
     markCheckRunning(db, check.id);
     const adapter = adapterFor(check.platform);
+    if (adapter.dataMode === "live" && wouldExceedCap(db, check.platform, 1)) {
+      const st = capStatus(db, check.platform);
+      markCheckFailed(db, check.id, "monthly_cap", `Monthly limit of ${st.cap} requests reached for this platform; resets ${st.resetsAt.slice(0, 10)}`);
+      return;
+    }
     try {
+      if (adapter.dataMode === "live") recordProviderCall(db, check.platform, "answer");
       const answer = await adapter.ask({ question: check.questionText, location: check.locationContext }, adapter.dataMode === "demo" ? demoContext : undefined);
       const envelope = { provider: answer.raw, citations: answer.citations, ...(answer.demoHints ? { demoHints: answer.demoHints } : {}) };
       const status = markCheckSuccess(db, check.id, { model: answer.model, answerText: answer.answerText, raw: envelope, usage: answer.usage });
@@ -110,9 +117,16 @@ async function analyze(db: Db, runId: string, deps: WorkerDeps, log: (m: string)
   if (!run) return;
   const business = getBusinessById(db, run.businessId);
   if (!business) return;
-  const choice = selectExtractor();
+  const choice = selectExtractor((name) => !wouldExceedCap(db, name, 1));
   const extractorEnabled = deps.extractorEnabled ?? choice !== null;
-  const summary = await analyzeRun(db, business, runId, { extractor: extractorEnabled && run.dataMode === "live" && choice ? choice.extractor : undefined, log });
+  const countedExtractor = choice
+    ? async (answer: string) => {
+        if (wouldExceedCap(db, choice.name, 1)) throw new Error(`monthly cap reached for ${choice.name}`);
+        recordProviderCall(db, choice.name, "extraction");
+        return choice.extractor(answer);
+      }
+    : undefined;
+  const summary = await analyzeRun(db, business, runId, { extractor: extractorEnabled && run.dataMode === "live" ? countedExtractor : undefined, log });
   const checks = getChecksForRun(db, runId);
   const citations = citationsForRun(db, runId);
   const metrics = computeRunMetrics(checks, mentionsForRun(db, runId), citations);

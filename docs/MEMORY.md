@@ -58,6 +58,8 @@ Living record of decisions, assumptions, open questions, limitations, and status
 
 | 2026-09-20 | Appearance: light and dark only, chosen with a single sun/moon icon button (labeled buttons in Settings); saved per browser; device setting used until the owner chooses. | Owner asked for a simple icon and two modes; a third "system" state added words and confusion. |
 
+| 2026-09-21 | Per-provider monthly request caps, Gemini default 5,000 (answers plus extraction), enforced before run creation, per check in the worker, in extractor selection, and in the scheduler. | Owner asked to block Gemini after the 5,000 free grounding requests on a billed project so usage never turns into a bill. |
+
 ## Hypotheses from the research (not decisions)
 
 - Pilot: owner-operated plumbing businesses in one U.S. metro with an existing website (any category with reachable owners is acceptable).

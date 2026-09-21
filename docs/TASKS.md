@@ -150,3 +150,4 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | 13.2 | Gemini adapter (interactions endpoint, google_search tool, url_citation parsing, location in prompt) | complete; live grounding blocked on free tier | Key authenticates; grounding returns quota errors on 3.x for a new free account; needs a billed Google project to verify answers |
 | 13.3 | Competitor extractors for OpenAI and Gemini with a selection order and fingerprint record | complete (OpenAI and Gemini both verified live) | tests/gemini-extractors.test.ts; live re-analysis of the 2026-09-21 run |
 | 13.4 | Free hosting: Oracle Always Free setup guide for the browser agent | pending | owner decision |
+| 13.5 | Monthly request cap per provider (Gemini 5,000 default) with usage display | complete | tests/monthly-cap.test.ts |

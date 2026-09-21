@@ -65,12 +65,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                     p.lastSuccessAt ? <Chip tone="good">last live answer {formatDate(p.lastSuccessAt)}</Chip> : <Chip tone="warn">no live answer yet</Chip>
                   ) : null}
                   {p.dataMode === "live" && p.lastFailureAt && (!p.lastSuccessAt || p.lastFailureAt > p.lastSuccessAt) ? <Chip tone="bad">last failure: {p.lastFailureCode}</Chip> : null}
+                  {p.dataMode === "live" && p.monthly.cap > 0 ? <Chip tone={p.monthly.reached ? "bad" : "neutral"} noIcon>{p.monthly.used} of {p.monthly.cap} this month</Chip> : null}
                 </span>
               </li>
             ))}
           </ul>
           <p className="row m-0 gap-2 text-[14px]">Competitor extraction {isExtractorConfigured() ? <Chip tone="good">available</Chip> : <Chip tone="warn">unavailable</Chip>}</p>
-          <p className="dt m-0">A key being present is not proof the integration works; &ldquo;last live answer&rdquo; is. Keys are set in the server environment. Answers come from each platform&apos;s API, which is not identical to its consumer app.</p>
+          <p className="dt m-0">A key being present is not proof the integration works; &ldquo;last live answer&rdquo; is. Keys are set in the server environment. Answers come from each platform&apos;s API, which is not identical to its consumer app. Monthly counts include answers and competitor extraction; at the cap, new requests to that platform are blocked until the 1st of next month.</p>
         </Card>
 
         <Card className="gap-2">

@@ -246,4 +246,17 @@ CREATE TABLE meta (
 );
 `,
   },
+  {
+    version: 4,
+    name: "provider_calls",
+    sql: `
+CREATE TABLE provider_calls (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('answer','extraction')),
+  at TEXT NOT NULL
+);
+CREATE INDEX provider_calls_provider_at_idx ON provider_calls(provider, at);
+`,
+  },
 ];

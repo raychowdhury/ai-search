@@ -193,6 +193,8 @@ These are estimates from list prices; the app records real `usage` per check so 
 
 ## 8b. Security headers and abuse limits
 
+**Monthly provider caps (added 2026-09-21).** Every live answer and competitor-extraction call is recorded in `provider_calls`. `MONTHLY_REQUEST_CAP_<PLATFORM>` caps requests per UTC calendar month (0 = unlimited); Gemini defaults to 5,000, the free grounding allowance on a billed Google project. A run excludes platforms whose cap would be exceeded, the worker fails individual checks with `monthly_cap` rather than calling the provider, the extractor selection skips a capped provider, and Settings and `/api/health` show used-of-cap per platform.
+
 `next.config.ts` sets a Content-Security-Policy (self plus inline scripts and styles, which Next.js hydration requires), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, and `Permissions-Policy`. Live runs are capped per business per rolling day (`LIVE_RUNS_PER_DAY`, default 10) in addition to the three-concurrent-runs limit. Sample runs are not capped.
 
 ## 9. Deployment

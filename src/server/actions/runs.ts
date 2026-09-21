@@ -9,6 +9,7 @@ import { getCurrentQuestionSet, saveQuestionSet, questionListSchema } from "@/li
 import { createRun, countActiveRuns, countLiveRunsLastDay } from "@/lib/collect/runs";
 import { buildFingerprint } from "@/lib/collect/fingerprint";
 import { LIVE_RUNS_PER_DAY } from "@/lib/collect/limits";
+import { wouldExceedCap, capStatus } from "@/lib/platforms/usage";
 import { configuredLiveAdapters } from "@/lib/platforms/registry";
 import { isExtractorConfigured } from "@/lib/analyze/extractorSelect";
 import { getRecommendation, setRecommendationStatus, setVerification } from "@/lib/recommend/store";
@@ -46,8 +47,14 @@ export async function questionsAndRunAction(_prev: FormState, formData: FormData
   if (countActiveRuns(db, business.id) >= 3) return { error: "A check is already running. Please wait for it to finish." };
 
   const live = intent.data === "run_live";
-  const platforms = live ? configuredLiveAdapters().map((a) => a.id) : (["demo"] as const);
-  if (platforms.length === 0) return { error: "No AI platforms are connected. Add an API key to run a live check, or run a sample check." };
+  const configured = live ? configuredLiveAdapters().map((a) => a.id) : (["demo"] as const);
+  const capped = live ? configured.filter((p) => wouldExceedCap(db, p, questionSet.questions.length)) : [];
+  const platforms = configured.filter((p) => !capped.includes(p));
+  if (configured.length === 0) return { error: "No AI platforms are connected. Add an API key to run a live check, or run a sample check." };
+  if (platforms.length === 0) {
+    const st = capStatus(db, capped[0]);
+    return { error: `The monthly limit for ${capped.join(", ")} would be exceeded (${st.used} of ${st.cap} requests used; resets ${st.resetsAt.slice(0, 10)}). Try again next month or raise the cap.` };
+  }
   if (live && countLiveRunsLastDay(db, business.id) >= LIVE_RUNS_PER_DAY) {
     return { error: `You have reached the limit of ${LIVE_RUNS_PER_DAY} live checks per day. Try again tomorrow.` };
   }

@@ -1,6 +1,7 @@
 import type { Db } from "@/db/client";
 import { adapterStatus } from "@/lib/platforms/registry";
 import type { PlatformId } from "@/lib/platforms/types";
+import { capStatus, type CapStatus } from "@/lib/platforms/usage";
 
 export interface PlatformHealth {
   id: PlatformId;
@@ -11,6 +12,8 @@ export interface PlatformHealth {
   lastSuccessAt: string | null;
   lastFailureAt: string | null;
   lastFailureCode: string | null;
+  /** Monthly request cap status; cap 0 means unlimited. */
+  monthly: CapStatus;
 }
 
 /** Credentials present is not provider health: this adds what actually happened on recent checks. */
@@ -30,6 +33,7 @@ export function platformHealth(db: Db): PlatformHealth[] {
       lastSuccessAt: ok?.completed_at ?? null,
       lastFailureAt: bad?.completed_at ?? null,
       lastFailureCode: bad?.error_code ?? null,
+      monthly: capStatus(db, a.id),
     };
   });
 }
