@@ -4,6 +4,8 @@ Living record of decisions, assumptions, open questions, limitations, and status
 
 ## Current status
 
+- 2026-09-21 (live verification, OpenAI): first live provider run. Smoke test and a full 12-question check for the demo business through the app's worker succeeded on `gpt-5.4-mini` (12 of 12 answers, real citations, audit complete). Findings: `gpt-5-mini` returns 404 "organization must be verified"; `gpt-5.4-mini` and `gpt-5.5` work without verification; web search results count as input tokens (about 8.5k per answer on 5.4-mini, 17k on 5.5). Measured cost: $0.222 for 12 checks at list price ($0.0185 per check), well below the earlier estimate for a mid-tier model. Default OpenAI model changed to `gpt-5.4-mini`. Competitor extraction remains unavailable without an Anthropic key. Evidence files: data/live-smoke-2026-09-21*.json (gitignored).
+
 - 2026-09-21: Seven launch blockers reported and verified in code; six fixed (scheduler controls, cap parsing, backup and restore with a drill script, password reset and email verification with a pluggable mailer, narrowed adapter input type with request-body tests, worker heartbeat, graceful shutdown, structured logs, alert webhook, health 503). Live provider verification stays blocked on a key. Resend email transport is written from its documentation and not exercised live.
 
 - 2026-09-20: Implemented the handoff milestones M0 to M8 from docs/research/CLAUDE_CODE_HANDOFF.md (research supplied 2026-09-19, reviewed commit f81634433a112e759ff660b9fbf1b7db8b8fe8b6). All nine cited code findings were reproduced at the cited lines and fixed with regression tests. 110 tests pass; typecheck, lint, and production build are clean. Migration v2 applied to the existing development database and the earlier runs still render. Live provider verification remains blocked: no API keys in the environment. Pilot category, metro, and pricing remain hypotheses, not decisions.
@@ -84,7 +86,7 @@ Living record of decisions, assumptions, open questions, limitations, and status
 
 ## Superseded gaps (2026-09-20 list)
 
-- Live adapters are unverified (no keys); the smoke script now persists evidence to data/ when run.
+- OpenAI adapter verified live 2026-09-21; Anthropic and Perplexity adapters remain unverified (no keys).
 - No browser-level automated test of the correction workflow; verified with a script against a database copy.
 - Password reset and email verification still need an email provider (account lockout recovery).
 - Backup restore has not been drilled.
@@ -115,4 +117,5 @@ Living record of decisions, assumptions, open questions, limitations, and status
 - Anthropic web search: tool types `web_search_20250305`, `web_search_20260209`, `web_search_20260318`; `user_location` {type approximate, city, region, country, timezone}; citations `web_search_result_location` with url, title, cited_text; errors inside 200 as `web_search_tool_result_error`; $10 per 1,000 searches plus tokens; `pause_turn` possible.
 - OpenAI Responses web search: `{type: "web_search"}` tool; `url_citation` annotations; `user_location` same shape; $10 per 1,000 calls plus tokens at model rates; GPT-5.5 $5/$30 per MTok, GPT-5 mini $0.25/$2.
 - Perplexity Sonar: `POST https://api.perplexity.ai/v1/sonar`; models sonar, sonar-pro; response `citations` and `search_results`; `web_search_options.user_location` and `search_context_size`; sonar $5 to $12 per 1,000 requests plus $1/$1 per MTok; sonar-pro $6 to $14 plus $3/$15.
+- OpenAI live (2026-09-21): Responses API `web_search` tool returns `url_citation` annotations with url and title; `user_location` accepted; `gpt-5.4-mini` list price $0.75 in / $4.50 out per MTok, `gpt-5.5` $5 / $30, `gpt-5.4` $2.50 / $15; web search $10 per 1,000 calls plus search content tokens at model rates; `gpt-5-mini` requires organization verification.
 - Gemini: `google_search` tool; $14 per 1,000 requests on 3.x with 5,000 free per month; location control unverified.

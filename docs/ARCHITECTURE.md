@@ -127,7 +127,7 @@ Adapters never interpret the answer. They return text plus the provider's own ci
 | Provider | Integration | Location context | Citations returned | Cost (list price) | Credential |
 |---|---|---|---|---|---|
 | Anthropic Claude API | Messages API with server-side `web_search` tool (`web_search_20260209` on Opus 5 / Sonnet 5; basic `web_search_20250305` also available) | `user_location` {city, region, country, timezone} | Yes: `web_search_result_location` citations with url, title, cited_text; plus `web_search_tool_result` blocks | $10 per 1,000 searches plus tokens (Opus 5: $5 in / $25 out per MTok; Sonnet 5: $2 / $10) | `ANTHROPIC_API_KEY` |
-| OpenAI Responses API | `tools: [{type: "web_search"}]` | `user_location` {type: approximate, city, region, country, timezone} | Yes: `url_citation` annotations on message output | $10 per 1,000 calls plus tokens at model rates (GPT-5.5: $5 / $30; GPT-5 mini: $0.25 / $2) | `OPENAI_API_KEY` |
+| OpenAI Responses API (verified live 2026-09-21) | `tools: [{type: "web_search"}]`; default model `gpt-5.4-mini` (`gpt-5-mini` needs org verification) | `user_location` {type: approximate, city, region, country, timezone} | Yes: `url_citation` annotations on message output | $10 per 1,000 calls plus tokens at model rates (gpt-5.4-mini $0.75 / $4.50; gpt-5.5 $5 / $30); search results are billed as input tokens | `OPENAI_API_KEY` |
 | Perplexity Sonar | `POST https://api.perplexity.ai/v1/sonar` (chat-style), models `sonar`, `sonar-pro` | `web_search_options.user_location` {city, region, country} | Yes: `citations` (URLs) and `search_results` (title, url, date, snippet) | Per request $5 to $12 per 1,000 (sonar, by context size) plus $1 / $1 per MTok; sonar-pro $6 to $14 per 1,000 plus $3 / $15 | `PERPLEXITY_API_KEY` |
 | Google Gemini API | `google_search` tool | Not verified for city-level control; treat as unsupported for now | Yes: url_citation annotations (per current docs) | $14 per 1,000 requests on Gemini 3.x (5,000 free per month); Flash tokens $0.75 / $3.75 per MTok through 2026 | `GEMINI_API_KEY` |
 
@@ -156,7 +156,8 @@ Assumptions: 10 questions, one platform, roughly 2 searches per question, about 
 |---|---|---|---|
 | Anthropic, Opus 5 | ~$0.02 search + ~$0.06 tokens + ~$0.02 extraction ≈ $0.10 | ≈ $1.00 | ≈ $4.30 |
 | Anthropic, Sonnet 5 | ~$0.02 + ~$0.024 + ~$0.01 ≈ $0.05 | ≈ $0.55 | ≈ $2.40 |
-| OpenAI, GPT-5 mini | ~$0.01 + ~$0.004 + extraction on Claude ~$0.02 ≈ $0.035 | ≈ $0.35 | ≈ $1.50 |
+| OpenAI, gpt-5.4-mini (measured 2026-09-21) | ~$0.0185 collection (8.5k in, 360 out, 1 search) + extraction on Claude ~$0.02 ≈ $0.04 | ≈ $0.40 | ≈ $1.70 |
+| OpenAI, gpt-5.5 (measured smoke) | ~$0.12 collection + ~$0.02 extraction ≈ $0.14 | ≈ $1.40 | ≈ $6.00 |
 | Perplexity sonar, low context | ~$0.005 + ~$0.01 + extraction ~$0.02 ≈ $0.035 | ≈ $0.35 | ≈ $1.50 |
 
 These are estimates from list prices; the app records real `usage` per check so we can replace estimates with measured cost.

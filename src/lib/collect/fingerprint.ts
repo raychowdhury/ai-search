@@ -9,7 +9,7 @@ function configuredModel(id: PlatformId): string {
     case "anthropic":
       return process.env.ANTHROPIC_ANSWER_MODEL ?? "claude-opus-5";
     case "openai":
-      return process.env.OPENAI_MODEL ?? "gpt-5-mini";
+      return process.env.OPENAI_MODEL ?? "gpt-5.4-mini";
     case "perplexity":
       return process.env.PERPLEXITY_MODEL ?? "sonar";
     case "demo":

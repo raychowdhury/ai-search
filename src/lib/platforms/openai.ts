@@ -31,7 +31,7 @@ export const openaiAdapter: PlatformAdapter = {
   dataMode: "live",
   isConfigured: () => Boolean(process.env.OPENAI_API_KEY),
   async ask(input: AskInput): Promise<PlatformAnswer> {
-    const model = process.env.OPENAI_MODEL ?? "gpt-5-mini";
+    const model = process.env.OPENAI_MODEL ?? "gpt-5.4-mini";
     const body = {
       model,
       input: input.question,

@@ -75,7 +75,7 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | 7.1 | Anthropic adapter (web search tool, user_location, citations) | complete | Parses documented response shape; unit tested with fixture; live smoke script |
 | 7.2 | Perplexity adapter | complete | Same as 7.1 |
 | 7.3 | OpenAI adapter | complete | Same as 7.1 |
-| 7.4 | Live verification with real keys | blocked | Needs API keys; not available in the dev environment on 2026-09-19 |
+| 7.4 | Live verification with real keys | in progress | OpenAI done 2026-09-21; Anthropic and Perplexity pending keys |
 | 7.5 | Analysis extraction via Claude structured outputs | complete | Works when key present; graceful fallback otherwise |
 
 ## Phase 8: Hardening and launch prep
@@ -124,7 +124,7 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | M7 | Question intents and gating (weekend, same-day), priority services first, measurement fingerprints, legacy-run limitation | complete | tests/compare.test.ts, tests/questions-facts.test.ts |
 | M7c | Optional branded factual-accuracy questions, kept out of discovery totals | pending | Not built; discovery questions never include the business name today |
 | M8 | Business-level pilot events | complete | src/lib/events.ts |
-| M4b | Live verification with real keys | blocked | needs ANTHROPIC_API_KEY, OPENAI_API_KEY, or PERPLEXITY_API_KEY |
+| M4b | Live verification with real keys | in progress | OpenAI verified 2026-09-21; Anthropic (also needed for competitor extraction) and Perplexity pending |
 | M7b | Repeatability experiment (bounded cost) | blocked | needs keys and a cost cap decision |
 | M8b | Source-opportunity classification, consumer-surface observations, profile integrations | pending | feasibility decision first |
 | M6b | Browser-level test of the correction workflow including a failure state | pending | Playwright not yet in CI |
@@ -140,4 +140,4 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | 12.4 | No password reset or email verification | complete (transport unverified) | Single-use tokens, /forgot-password, /reset-password, /verify-email, settings card; Resend transport written from its docs but not exercised live; log transport in dev |
 | 12.5 | Privacy boundary was convention-based | complete | AskInput no longer carries the business; demo context passed only to the demo adapter; tests assert live request bodies |
 | 12.6 | No graceful shutdown or worker health alerting | complete | Heartbeat in meta table, /api/health 503 when stale, SIGTERM/SIGINT drain, structured JSON logs, ALERT_WEBHOOK_URL |
-| 12.7 | Live provider behavior unverified | blocked | Needs an API key; pnpm live:smoke persists evidence |
+| 12.7 | Live provider behavior unverified | partially complete | OpenAI verified live 2026-09-21 (smoke plus a 12-question run, $0.22); Anthropic and Perplexity still need keys |
