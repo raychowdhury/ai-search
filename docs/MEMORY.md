@@ -4,6 +4,8 @@ Living record of decisions, assumptions, open questions, limitations, and status
 
 ## Current status
 
+- 2026-09-21 (free providers): Surveyed free tiers against official pages. Only Google Gemini offers a real free answer platform with web grounding (2.5 models, 500 grounded requests/day, prompts may be used by Google on the free tier, no location parameter so the city is put in the question). OpenAI, Anthropic, and Perplexity have no ongoing free tier (trial credits only). Resend free plan: 3,000 emails/month, 100/day. Hosting: Render free cannot attach a persistent disk; Fly.io has no free tier for new customers; Oracle Always Free (2 OCPU, 12 GB after the June 2026 cut) is the only free option with a disk. Built the Gemini adapter (interactions endpoint, url_citation annotations) plus OpenAI and Gemini competitor extractors with a preference order Claude, OpenAI, Gemini. Gemini adapter and extractor are written from the docs and await a key; the OpenAI extractor was verified on the live run.
+
 - 2026-09-21 (email): Resend transport verified live. A test message and a real password-reset email were accepted by Resend (message ids returned) using the test sender `onboarding@resend.dev`, which delivers only to the Resend account owner's address. Real delivery to customers needs a verified sending domain in Resend and `EMAIL_FROM` set to an address on it. Inbox receipt and the reset link are awaiting the owner's confirmation.
 
 - 2026-09-21 (live verification, OpenAI): first live provider run. Smoke test and a full 12-question check for the demo business through the app's worker succeeded on `gpt-5.4-mini` (12 of 12 answers, real citations, audit complete). Findings: `gpt-5-mini` returns 404 "organization must be verified"; `gpt-5.4-mini` and `gpt-5.5` work without verification; web search results count as input tokens (about 8.5k per answer on 5.4-mini, 17k on 5.5). Measured cost: $0.222 for 12 checks at list price ($0.0185 per check), well below the earlier estimate for a mid-tier model. Default OpenAI model changed to `gpt-5.4-mini`. Competitor extraction remains unavailable without an Anthropic key. Evidence files: data/live-smoke-2026-09-21*.json (gitignored).
@@ -69,7 +71,7 @@ Living record of decisions, assumptions, open questions, limitations, and status
 - Weekly is the default re-check cadence when scheduling is turned on; it is off by default.
 - Raw responses are retained 12 months.
 - Country list is ISO 3166-1 alpha-2; the UI defaults to nothing and requires a choice.
-- Gemini is deferred because city-level location control could not be verified from the docs page we read.
+- Gemini's grounding has no location parameter; localisation relies on the city in the question text and is unverified until a key is available.
 
 ## Open questions
 

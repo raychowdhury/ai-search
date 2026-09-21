@@ -1,6 +1,6 @@
 import { getDb } from "@/db/client";
 import { platformHealth } from "@/server/platformHealth";
-import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
+import { isExtractorConfigured } from "@/lib/analyze/extractorSelect";
 import { workerStatus } from "@/lib/observability";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,6 @@ export async function GET() {
     worker: worker ? { ...worker, disabled: process.env.DISABLE_WORKER === "1" } : null,
     // Key present is not proof the integration works; lastSuccessAt is.
     platforms: dbOk ? platformHealth(getDb()) : [],
-    competitorExtraction: isClaudeExtractorConfigured() ? "configured" : "unavailable",
+    competitorExtraction: isExtractorConfigured() ? "configured" : "unavailable",
   }, { status: dbOk && workerOk ? 200 : 503 });
 }

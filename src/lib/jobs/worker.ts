@@ -8,7 +8,7 @@ import {
 import { getAdapter } from "@/lib/platforms/registry";
 import { PlatformError } from "@/lib/platforms/types";
 import { analyzeRun } from "@/lib/analyze/run";
-import { claudeExtractor, isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
+import { selectExtractor } from "@/lib/analyze/extractorSelect";
 import { computeRunMetrics } from "@/lib/metrics/compute";
 import { mentionsForRun, citationsForRun } from "@/lib/analyze/store";
 import { runWebsiteAudit, latestAudit } from "@/lib/audit/run";
@@ -110,8 +110,9 @@ async function analyze(db: Db, runId: string, deps: WorkerDeps, log: (m: string)
   if (!run) return;
   const business = getBusinessById(db, run.businessId);
   if (!business) return;
-  const extractorEnabled = deps.extractorEnabled ?? isClaudeExtractorConfigured();
-  const summary = await analyzeRun(db, business, runId, { extractor: extractorEnabled && run.dataMode === "live" ? claudeExtractor : undefined, log });
+  const choice = selectExtractor();
+  const extractorEnabled = deps.extractorEnabled ?? choice !== null;
+  const summary = await analyzeRun(db, business, runId, { extractor: extractorEnabled && run.dataMode === "live" && choice ? choice.extractor : undefined, log });
   const checks = getChecksForRun(db, runId);
   const citations = citationsForRun(db, runId);
   const metrics = computeRunMetrics(checks, mentionsForRun(db, runId), citations);
@@ -136,7 +137,7 @@ async function analyze(db: Db, runId: string, deps: WorkerDeps, log: (m: string)
   if (summary.evidenceUnreadable > 0) {
     notes.push(`Source evidence could not be read for ${summary.evidenceUnreadable} answer${summary.evidenceUnreadable === 1 ? "" : "s"}; those are left out of the "website cited" count.`);
   }
-  setRunStatus(db, runId, "complete", { summary, ...(notes.length ? { analysisNote: notes.join(" ") } : {}) });
+  setRunStatus(db, runId, "complete", { summary, analysisNote: notes.length ? notes.join(" ") : null });
 }
 
 /**

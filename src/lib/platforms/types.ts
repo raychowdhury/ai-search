@@ -1,6 +1,6 @@
 import type { LocationContext } from "@/lib/business/schema";
 
-export type PlatformId = "demo" | "anthropic" | "openai" | "perplexity";
+export type PlatformId = "demo" | "anthropic" | "openai" | "perplexity" | "gemini";
 export type DataMode = "live" | "demo";
 
 export interface PlatformCitation {
@@ -70,4 +70,5 @@ export const PLATFORM_LABELS: Record<PlatformId, string> = {
   anthropic: "Claude (API with web search)",
   openai: "ChatGPT models (OpenAI API with web search)",
   perplexity: "Perplexity (Sonar API)",
+  gemini: "Gemini (API with Google Search)",
 };

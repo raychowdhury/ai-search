@@ -4,7 +4,7 @@ import { getCurrentQuestionSet } from "@/lib/questions/repo";
 import { createRun, latestRun, countActiveRuns, countLiveRunsLastDay } from "@/lib/collect/runs";
 import { configuredLiveAdapters } from "@/lib/platforms/registry";
 import { buildFingerprint } from "@/lib/collect/fingerprint";
-import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
+import { isExtractorConfigured } from "@/lib/analyze/extractorSelect";
 import { LIVE_RUNS_PER_DAY } from "@/lib/collect/limits";
 import { logEvent } from "@/lib/events";
 
@@ -12,7 +12,7 @@ const INTERVALS: Record<string, number> = { weekly: 7 * 24 * 3600 * 1000, monthl
 
 export interface SchedulerDeps {
   now?: Date;
-  liveAdapterIds?: () => Array<"anthropic" | "openai" | "perplexity">;
+  liveAdapterIds?: () => Array<"anthropic" | "openai" | "perplexity" | "gemini">;
   extractorConfigured?: boolean;
   liveRunsPerDay?: number;
   log?: (event: string, meta: Record<string, unknown>) => void;
@@ -26,7 +26,7 @@ export interface SchedulerDeps {
  */
 export function runScheduler(db: Db, deps: SchedulerDeps = {}): number {
   const now = deps.now ?? new Date();
-  const live = deps.liveAdapterIds ? deps.liveAdapterIds() : configuredLiveAdapters().map((a) => a.id as "anthropic" | "openai" | "perplexity");
+  const live = deps.liveAdapterIds ? deps.liveAdapterIds() : configuredLiveAdapters().map((a) => a.id as "anthropic" | "openai" | "perplexity" | "gemini");
   const cap = deps.liveRunsPerDay ?? LIVE_RUNS_PER_DAY;
   const log = deps.log ?? (() => undefined);
   if (live.length === 0) return 0;
@@ -50,7 +50,7 @@ export function runScheduler(db: Db, deps: SchedulerDeps = {}): number {
     const qs = getCurrentQuestionSet(db, id);
     if (!qs) continue;
     const run = createRun(db, business, qs, live, "live", {
-      fingerprint: buildFingerprint(live, "live", deps.extractorConfigured ?? isClaudeExtractorConfigured()),
+      fingerprint: buildFingerprint(live, "live", deps.extractorConfigured ?? isExtractorConfigured()),
     });
     logEvent(db, id, "run_started", { runId: run.id, dataMode: "live", platforms: live, scheduled: true, schedule: business.schedule });
     log("scheduler.started", { businessId: id, runId: run.id });

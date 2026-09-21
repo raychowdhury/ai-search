@@ -26,7 +26,7 @@ const STEPS = [
 ];
 
 const FAQ = [
-  { q: "Which assistants do you check?", a: "Claude and Perplexity today, through their official APIs. More as their APIs allow location context." },
+  { q: "Which assistants do you check?", a: "ChatGPT models (OpenAI), Gemini, Claude, and Perplexity, through their official APIs, depending on which are connected. Each answer is labeled with its platform." },
   { q: "What does “mentioned” mean?", a: "Your business name appears anywhere in the answer. “Recommended” means it was presented as an option. “Cited” means your website was among the sources." },
   { q: "Why do results change?", a: "Assistants answer differently depending on wording, location, and time. That is why we date every answer and only compare checks with the same setup." },
   { q: "Is my data shared?", a: "No. We store your business details, the answers we collect, and an audit of your own public site. Nothing else." },
@@ -55,7 +55,7 @@ export default async function Landing() {
           <h1 className="grad max-w-[860px] text-[40px] leading-[1.08] tracking-[-0.04em] sm:text-[76px] sm:leading-[1.02] sm:tracking-[-0.05em]" style={{ textWrap: "pretty" }}>Do AI assistants mention your business?</h1>
           <p className="m2 mt-5 max-w-[640px] text-[16px] leading-relaxed sm:mt-7 sm:text-[20px]">We ask the assistants the questions your customers ask, show you the actual answers and the sources they cite, tell you who else appears, and give you three things to do about it.</p>
           <div className="mt-7 flex flex-col gap-2.5 sm:mt-9 sm:flex-row"><LinkButton href="/signup">Create an account</LinkButton><LinkButton href="/login" variant="secondary">Sign in</LinkButton></div>
-          <div className="row mt-10 hidden gap-5 text-[13px] sm:flex"><span className="m3">Checks</span><span className="chip chip-fg">Claude · API</span><span className="chip chip-fg">Perplexity · API</span></div>
+          <div className="row mt-10 hidden gap-5 text-[13px] sm:flex"><span className="m3">Checks</span><span className="chip chip-fg">ChatGPT · API</span><span className="chip chip-fg">Gemini · API</span><span className="chip chip-fg">Claude · API</span><span className="chip chip-fg">Perplexity · API</span></div>
         </div>
       </section>
 

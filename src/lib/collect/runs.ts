@@ -263,15 +263,17 @@ export function setRunStatus(
   db: Db,
   id: string,
   status: RunStatus,
-  extra: { summary?: RunSummary; analysisNote?: string } = {},
+  extra: { summary?: RunSummary; analysisNote?: string | null } = {},
 ): void {
   const ts = nowIso();
   const startedAt = status === "running" ? ts : null;
   const finishedAt = status === "complete" || status === "failed" ? ts : null;
+  // analysisNote: undefined keeps the stored note; null clears it; a string replaces it.
+  const noteProvided = extra.analysisNote !== undefined;
   db.prepare(
     `UPDATE runs SET status = ?, started_at = COALESCE(started_at, ?), finished_at = COALESCE(?, finished_at),
-       summary = COALESCE(?, summary), analysis_note = COALESCE(?, analysis_note), updated_at = ? WHERE id = ?`,
-  ).run(status, startedAt, finishedAt, extra.summary ? JSON.stringify(extra.summary) : null, extra.analysisNote ?? null, ts, id);
+       summary = COALESCE(?, summary), analysis_note = CASE WHEN ? = 1 THEN ? ELSE analysis_note END, updated_at = ? WHERE id = ?`,
+  ).run(status, startedAt, finishedAt, extra.summary ? JSON.stringify(extra.summary) : null, noteProvided ? 1 : 0, extra.analysisNote ?? null, ts, id);
 }
 
 export function getChecksForRun(db: Db, runId: string): Check[] {

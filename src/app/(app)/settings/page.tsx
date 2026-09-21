@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireBusiness } from "@/server/data";
 import { getDb } from "@/db/client";
 import { platformHealth } from "@/server/platformHealth";
-import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
+import { isExtractorConfigured } from "@/lib/analyze/extractorSelect";
 import { setScheduleAction, deleteAccountAction } from "@/server/actions/business";
 import { resendVerificationAction } from "@/server/actions/auth";
 import { getUserById } from "@/lib/auth/users";
@@ -69,7 +69,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               </li>
             ))}
           </ul>
-          <p className="row m-0 gap-2 text-[14px]">Competitor extraction {isClaudeExtractorConfigured() ? <Chip tone="good">available</Chip> : <Chip tone="warn">unavailable</Chip>}</p>
+          <p className="row m-0 gap-2 text-[14px]">Competitor extraction {isExtractorConfigured() ? <Chip tone="good">available</Chip> : <Chip tone="warn">unavailable</Chip>}</p>
           <p className="dt m-0">A key being present is not proof the integration works; &ldquo;last live answer&rdquo; is. Keys are set in the server environment. Answers come from each platform&apos;s API, which is not identical to its consumer app.</p>
         </Card>
 

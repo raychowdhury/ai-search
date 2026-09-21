@@ -10,7 +10,7 @@ import { createRun, countActiveRuns, countLiveRunsLastDay } from "@/lib/collect/
 import { buildFingerprint } from "@/lib/collect/fingerprint";
 import { LIVE_RUNS_PER_DAY } from "@/lib/collect/limits";
 import { configuredLiveAdapters } from "@/lib/platforms/registry";
-import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
+import { isExtractorConfigured } from "@/lib/analyze/extractorSelect";
 import { getRecommendation, setRecommendationStatus, setVerification } from "@/lib/recommend/store";
 import { enqueue } from "@/lib/jobs/queue";
 import { logEvent } from "@/lib/events";
@@ -53,7 +53,7 @@ export async function questionsAndRunAction(_prev: FormState, formData: FormData
   }
   const dataMode = live ? "live" : "demo";
   const run = createRun(db, business, questionSet, [...platforms], dataMode, {
-    fingerprint: buildFingerprint([...platforms], dataMode, isClaudeExtractorConfigured()),
+    fingerprint: buildFingerprint([...platforms], dataMode, isExtractorConfigured()),
   });
   logEvent(db, business.id, "run_started", { runId: run.id, dataMode, platforms });
   redirect(`/run/${run.id}`);

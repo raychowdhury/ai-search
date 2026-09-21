@@ -125,6 +125,11 @@ describe("end-to-end demo run through the worker", () => {
     const done = getRun(db, run.id)!;
     expect(done.summary?.evidenceUnreadable).toBe(1);
     expect(done.analysisNote).toMatch(/could not be read/);
+    // Re-analysis with the evidence repaired must clear the stale note.
+    db.prepare("UPDATE checks SET raw_response = ? WHERE id = ?").run(JSON.stringify({ provider: null, citations: [] }), c2.id);
+    enqueue(db, "analyze_run", { runId: run.id });
+    await drain({ db, log: () => {}, extractorEnabled: false });
+    expect(getRun(db, run.id)!.analysisNote).toBeNull();
     const metrics = computeRunMetrics(after, mentionsForRun(db, run.id), citationsForRun(db, run.id));
     expect(metrics.citationRate.denominator).toBe(1);
   });

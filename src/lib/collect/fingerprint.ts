@@ -1,6 +1,7 @@
 import type { PlatformId } from "@/lib/platforms/types";
 import type { RunFingerprint } from "./runs";
 import { EXTRACTION_VERSION } from "@/lib/analyze/extract";
+import { selectExtractor } from "@/lib/analyze/extractorSelect";
 
 export const PROMPT_TEMPLATE_VERSION = "v1";
 
@@ -12,6 +13,8 @@ function configuredModel(id: PlatformId): string {
       return process.env.OPENAI_MODEL ?? "gpt-5.4-mini";
     case "perplexity":
       return process.env.PERPLEXITY_MODEL ?? "sonar";
+    case "gemini":
+      return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
     case "demo":
       return "demo-template-v1";
   }
@@ -24,7 +27,7 @@ export function buildFingerprint(platforms: PlatformId[], dataMode: "live" | "de
   return {
     collection: dataMode === "demo" ? "demo" : "api",
     models,
-    extractionModel: dataMode === "demo" ? "demo-hints" : extractorConfigured ? (process.env.ANALYSIS_MODEL ?? "claude-opus-5") : null,
+    extractionModel: dataMode === "demo" ? "demo-hints" : extractorConfigured ? (selectExtractor()?.model ?? null) : null,
     extractionVersion: EXTRACTION_VERSION,
     promptTemplate: PROMPT_TEMPLATE_VERSION,
     repetition: 1,

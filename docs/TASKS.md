@@ -141,3 +141,12 @@ Notes: 7.1 to 7.3 are implemented against documented API shapes with unit-level 
 | 12.5 | Privacy boundary was convention-based | complete | AskInput no longer carries the business; demo context passed only to the demo adapter; tests assert live request bodies |
 | 12.6 | No graceful shutdown or worker health alerting | complete | Heartbeat in meta table, /api/health 503 when stale, SIGTERM/SIGINT drain, structured JSON logs, ALERT_WEBHOOK_URL |
 | 12.7 | Live provider behavior unverified | partially complete | OpenAI verified live 2026-09-21 (smoke plus a 12-question run, $0.22); Anthropic and Perplexity still need keys |
+
+## Phase 13: Free providers and extractor fallbacks, 2026-09-21
+
+| ID | Task | Status | Evidence |
+|---|---|---|---|
+| 13.1 | Survey free tiers of every provider against official pages | complete | MEMORY.md status entry; summary in the 2026-09-21 chat |
+| 13.2 | Gemini adapter (interactions endpoint, google_search tool, url_citation parsing, location in prompt) | complete, unverified live | tests/gemini-extractors.test.ts; needs GEMINI_API_KEY |
+| 13.3 | Competitor extractors for OpenAI and Gemini with a selection order and fingerprint record | complete (OpenAI verified live, Gemini pending key) | tests/gemini-extractors.test.ts; live re-analysis of the 2026-09-21 run |
+| 13.4 | Free hosting: Oracle Always Free setup guide for the browser agent | pending | owner decision |

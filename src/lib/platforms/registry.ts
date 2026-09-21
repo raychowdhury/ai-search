@@ -3,8 +3,9 @@ import { demoAdapter } from "./demo";
 import { anthropicAdapter } from "./anthropic";
 import { openaiAdapter } from "./openai";
 import { perplexityAdapter } from "./perplexity";
+import { geminiAdapter } from "./gemini";
 
-const ALL: PlatformAdapter[] = [anthropicAdapter, openaiAdapter, perplexityAdapter, demoAdapter];
+const ALL: PlatformAdapter[] = [anthropicAdapter, openaiAdapter, geminiAdapter, perplexityAdapter, demoAdapter];
 
 export function getAdapter(id: PlatformId): PlatformAdapter {
   const a = ALL.find((x) => x.id === id);
