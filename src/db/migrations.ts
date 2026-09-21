@@ -224,4 +224,26 @@ CREATE TABLE events (
 CREATE INDEX events_business_idx ON events(business_id, at);
 `,
   },
+  {
+    version: 3,
+    name: "auth_tokens_meta",
+    sql: `
+CREATE TABLE auth_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL CHECK (purpose IN ('reset','verify')),
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX auth_tokens_user_idx ON auth_tokens(user_id, purpose);
+
+CREATE TABLE meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+`,
+  },
 ];

@@ -6,6 +6,7 @@ export interface UserRow {
   id: string;
   email: string;
   password_hash: string;
+  email_verified_at?: string | null;
 }
 
 export function normalizeEmail(email: string): string {
@@ -25,9 +26,25 @@ export async function createUser(db: Db, email: string, password: string): Promi
 
 export function findUserByEmail(db: Db, email: string): UserRow | null {
   const row = db
-    .prepare("SELECT id, email, password_hash FROM users WHERE email = ?")
+    .prepare("SELECT id, email, password_hash, email_verified_at FROM users WHERE email = ?")
     .get(normalizeEmail(email)) as UserRow | undefined;
   return row ?? null;
+}
+
+export function getUserById(db: Db, id: string): UserRow | null {
+  const row = db.prepare("SELECT id, email, password_hash, email_verified_at FROM users WHERE id = ?").get(id) as UserRow | undefined;
+  return row ?? null;
+}
+
+/** Replaces the password and revokes every session so a reset also logs out other devices. */
+export async function setPassword(db: Db, userId: string, password: string): Promise<void> {
+  const password_hash = await hashPassword(password);
+  db.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").run(password_hash, nowIso(), userId);
+  db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+}
+
+export function markEmailVerified(db: Db, userId: string): void {
+  db.prepare("UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?), updated_at = ? WHERE id = ?").run(nowIso(), nowIso(), userId);
 }
 
 export async function authenticate(db: Db, email: string, password: string): Promise<UserRow | null> {

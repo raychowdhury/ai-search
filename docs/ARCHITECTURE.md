@@ -183,6 +183,13 @@ These are estimates from list prices; the app records real `usage` per check so 
 - All business data is scoped by `user_id`; every query goes through helpers that require the current user.
 - Email verification and password reset are planned (needs an email provider; open question).
 
+## 8a. Authentication recovery, backups, and observability (added 2026-09-21)
+
+- **Password reset and email verification:** single-use, hashed tokens in `auth_tokens` (reset valid 1 hour, verify 7 days; issuing a new token voids the old). Reset replaces the password and revokes all sessions. A pluggable mailer sends via Resend when configured, otherwise logs the message. Signup issues a verification link; Settings shows status and can resend.
+- **Backups:** `src/db/backup.ts` uses SQLite's online backup API; verify runs `integrity_check` and counts rows; restore refuses a failing backup and keeps the replaced file. The worker takes a daily backup when `BACKUP_DIR` is set. `pnpm db:drill` proves a backup restores with identical row counts.
+- **Observability:** JSON log lines for worker events; a heartbeat in the `meta` table every tick; `/api/health` returns 503 when the heartbeat is stale or the database is unreachable; `ALERT_WEBHOOK_URL` receives permanent job failures and backup failures; SIGTERM/SIGINT drains the in-flight job before exit.
+- **Privacy boundary:** `AskInput` carries only the question and location context; the demo adapter alone receives a `DemoContext`. Tests assert the live request bodies contain neither business name nor website.
+
 ## 8b. Security headers and abuse limits
 
 `next.config.ts` sets a Content-Security-Policy (self plus inline scripts and styles, which Next.js hydration requires), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, and `Permissions-Policy`. Live runs are capped per business per rolling day (`LIVE_RUNS_PER_DAY`, default 10) in addition to the three-concurrent-runs limit. Sample runs are not capped.

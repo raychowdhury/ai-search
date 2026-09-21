@@ -4,6 +4,8 @@ Living record of decisions, assumptions, open questions, limitations, and status
 
 ## Current status
 
+- 2026-09-21: Seven launch blockers reported and verified in code; six fixed (scheduler controls, cap parsing, backup and restore with a drill script, password reset and email verification with a pluggable mailer, narrowed adapter input type with request-body tests, worker heartbeat, graceful shutdown, structured logs, alert webhook, health 503). Live provider verification stays blocked on a key. Resend email transport is written from its documentation and not exercised live.
+
 - 2026-09-20: Implemented the handoff milestones M0 to M8 from docs/research/CLAUDE_CODE_HANDOFF.md (research supplied 2026-09-19, reviewed commit f81634433a112e759ff660b9fbf1b7db8b8fe8b6). All nine cited code findings were reproduced at the cited lines and fixed with regression tests. 110 tests pass; typecheck, lint, and production build are clean. Migration v2 applied to the existing development database and the earlier runs still render. Live provider verification remains blocked: no API keys in the environment. Pilot category, metro, and pricing remain hypotheses, not decisions.
 
 - 2026-09-19 (morning): Project started from an empty directory. Six planning docs written. Provider capabilities verified against official docs. No API keys are available in the development environment, so the MVP is built with replaceable adapters and a labeled demo adapter.
@@ -75,7 +77,12 @@ Living record of decisions, assumptions, open questions, limitations, and status
 6. Whether to offer a Sonnet 5 "lower cost" toggle in settings or keep model choice internal.
 7. Should owners see provider model names, or only platform names? (Current plan: platform name plus model in a tooltip.)
 
-## Known gaps in the current build (updated 2026-09-20)
+## Known gaps in the current build (updated 2026-09-21)
+
+- Email sending is unverified live (Resend transport written from docs); development uses the log transport.
+- Alerting is a generic JSON webhook plus a 503 health endpoint; no pager or Slack integration is configured.
+
+## Superseded gaps (2026-09-20 list)
 
 - Live adapters are unverified (no keys); the smoke script now persists evidence to data/ when run.
 - No browser-level automated test of the correction workflow; verified with a script against a database copy.

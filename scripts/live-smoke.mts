@@ -20,11 +20,7 @@ for (const adapter of adapters) {
   console.log(`\n=== ${adapter.label} ===`);
   const startedAt = new Date().toISOString();
   try {
-    const answer = await adapter.ask({
-      question,
-      location,
-      business: { name: "", category: "", city: location.city, region: location.region, websiteDomain: "", services: [] },
-    });
+    const answer = await adapter.ask({ question, location });
     console.log(`model: ${answer.model}`);
     console.log(answer.answerText);
     console.log("citations:", answer.citations);

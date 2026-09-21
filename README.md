@@ -36,6 +36,14 @@ pnpm live:smoke  # asks one question through each configured live adapter
 3. **Analyze**: owner mentions come from name matching; other businesses come from a verified extraction step whose evidence must be an exact excerpt of the stored answer. Metrics are always "N of M successful checks"; failed checks are never counted as absence.
 4. **Recommend**: rule-based improvement opportunities, each citing stored evidence, ranked and capped at three.
 
+## Operations
+
+- **Backups:** set `BACKUP_DIR` and the worker takes a daily online backup (SQLite backup API) and prunes old ones. Manual: `pnpm db:backup`. Restore with the app stopped: `pnpm db:restore <file>`. Prove a backup is usable: `pnpm db:drill`.
+- **Health:** `GET /api/health` returns 503 when the database is unreachable or the worker heartbeat is older than 2 minutes; point an uptime monitor at it. Set `ALERT_WEBHOOK_URL` to receive JSON alerts for permanent job failures and backup failures.
+- **Shutdown:** on SIGTERM or SIGINT the worker stops claiming jobs and waits up to 25 seconds for the in-flight job.
+- **Email:** password reset and email confirmation use Resend when `RESEND_API_KEY` and `EMAIL_FROM` are set; otherwise messages (with their links) are printed to the server log.
+- **Cost caps:** live checks are limited per business per day (`LIVE_RUNS_PER_DAY`, default 10; malformed values fall back to 10). Scheduled checks obey the same cap and never overlap an active run.
+
 ## Deployment
 
 One Node process serves the app and runs the background worker. Mount a persistent volume and point `DATABASE_PATH` at it. `GET /api/health` reports database reachability and which adapters are configured (names only). See `Dockerfile`.

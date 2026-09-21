@@ -4,19 +4,39 @@ import { getDb } from "@/db/client";
 import { platformHealth } from "@/server/platformHealth";
 import { isClaudeExtractorConfigured } from "@/lib/analyze/claudeExtractor";
 import { setScheduleAction, deleteAccountAction } from "@/server/actions/business";
+import { resendVerificationAction } from "@/server/actions/auth";
+import { getUserById } from "@/lib/auth/users";
 import { PageTitle, Card, CardTitle, Notice, Button, Chip, inputClass, formatDate } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
-  const { business } = await requireBusiness();
-  const { saved, error } = await searchParams;
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; sent?: string; verified?: string }> }) {
+  const { business, userId } = await requireBusiness();
+  const { saved, error, sent, verified } = await searchParams;
+  const user = getUserById(getDb(), userId);
   const platforms = platformHealth(getDb());
   return (
     <>
       <PageTitle>Settings</PageTitle>
       {saved ? <div className="mb-4"><Notice kind="success">Saved.</Notice></div> : null}
       {error === "confirm" ? <div className="mb-4"><Notice kind="error">Type DELETE to confirm account deletion.</Notice></div> : null}
+      {verified ? <div className="mb-4"><Notice kind="success">Your email address is confirmed.</Notice></div> : null}
+      {sent === "verify" ? <div className="mb-4"><Notice kind="success">Confirmation email sent. Check your inbox.</Notice></div> : null}
+      {error === "verify_invalid" ? <div className="mb-4"><Notice kind="error">That confirmation link is invalid or has expired. Send a new one below.</Notice></div> : null}
+      {error === "verify_limit" ? <div className="mb-4"><Notice kind="error">Too many confirmation emails requested. Try again in an hour.</Notice></div> : null}
+      {error === "verify_send" ? <div className="mb-4"><Notice kind="error">We could not send the confirmation email right now.</Notice></div> : null}
       <div className="flex flex-col gap-4">
+        <Card className="gap-2">
+          <CardTitle>Account</CardTitle>
+          <p className="row m-0 flex-wrap gap-2 text-[14px]">{user?.email} {user?.email_verified_at ? <Chip tone="good">email confirmed</Chip> : <Chip tone="warn">email not confirmed</Chip>}</p>
+          {!user?.email_verified_at ? (
+            <form action={resendVerificationAction} className="row flex-wrap gap-3">
+              <Button type="submit" variant="secondary" size="sm">Send confirmation email</Button>
+              <span className="dt">Confirming your email lets you reset your password if you get locked out.</span>
+            </form>
+          ) : null}
+          <p className="dt m-0">To change your password, sign out and use &ldquo;Forgot your password?&rdquo; on the sign-in page.</p>
+        </Card>
+
         <Card className="gap-1.5">
           <CardTitle>Business details</CardTitle>
           <p className="m-0 text-[14px]">{business.name} · {business.category} · {business.city}, {business.region}, {business.country}</p>

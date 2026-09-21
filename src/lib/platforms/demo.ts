@@ -1,4 +1,4 @@
-import type { AskInput, PlatformAdapter, PlatformAnswer } from "./types";
+import type { AskInput, DemoContext, PlatformAdapter, PlatformAnswer } from "./types";
 import { PlatformError, PLATFORM_LABELS } from "./types";
 
 // Deterministic sample answers. They are templated from the owner's details so
@@ -26,13 +26,13 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-export function demoCompetitors(business: AskInput["business"]): string[] {
+export function demoCompetitors(business: DemoContext): string[] {
   const cat = titleCase(business.category);
   return [`${titleCase(business.city)} ${cat} Center`, `Northside ${cat} Co.`, `Bright ${cat} Group`];
 }
 
-export function buildDemoAnswer(input: AskInput): PlatformAnswer {
-  const { business, question } = input;
+export function buildDemoAnswer(input: AskInput, business: DemoContext): PlatformAnswer {
+  const { question } = input;
   const scenario = hash(question) % 10;
   const [c1, c2, c3] = demoCompetitors(business);
   const city = business.city;
@@ -128,8 +128,9 @@ export const demoAdapter: PlatformAdapter = {
   label: PLATFORM_LABELS.demo,
   dataMode: "demo",
   isConfigured: () => true,
-  async ask(input) {
+  async ask(input, demo) {
+    if (!demo) throw new PlatformError("demo_context_missing", "The sample adapter needs business details to template an answer", false);
     await new Promise((r) => setTimeout(r, 150));
-    return buildDemoAnswer(input);
+    return buildDemoAnswer(input, demo);
   },
 };

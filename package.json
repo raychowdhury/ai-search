@@ -11,7 +11,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "live:smoke": "pnpm dlx tsx scripts/live-smoke.mts",
-    "seed:demo": "pnpm dlx tsx scripts/seed-demo.mts"
+    "seed:demo": "pnpm dlx tsx scripts/seed-demo.mts",
+    "db:backup": "pnpm dlx tsx scripts/db-backup.mts",
+    "db:restore": "pnpm dlx tsx scripts/db-restore.mts",
+    "db:drill": "pnpm dlx tsx scripts/backup-drill.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",

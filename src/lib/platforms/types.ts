@@ -23,21 +23,25 @@ export interface PlatformAnswer {
   demoHints?: DemoEntityHint[];
 }
 
-/** What the demo adapter needs to template sample answers. Live adapters must ignore it. */
-export interface BusinessSnapshot {
+/**
+ * Everything a live adapter may send outbound: the question and location context.
+ * The business name, website, and services are deliberately not part of this type,
+ * so a live adapter cannot include them without a type error.
+ */
+export interface AskInput {
+  question: string;
+  location: LocationContext;
+  signal?: AbortSignal;
+}
+
+/** What the sample adapter needs to template answers. Only the demo adapter receives it. */
+export interface DemoContext {
   name: string;
   category: string;
   city: string;
   region: string;
   websiteDomain: string;
   services: string[];
-}
-
-export interface AskInput {
-  question: string;
-  location: LocationContext;
-  business: BusinessSnapshot;
-  signal?: AbortSignal;
 }
 
 export class PlatformError extends Error {
@@ -57,7 +61,8 @@ export interface PlatformAdapter {
   label: string;
   dataMode: DataMode;
   isConfigured(): boolean;
-  ask(input: AskInput): Promise<PlatformAnswer>;
+  /** Live adapters receive only `input`. The worker passes `demo` solely to the demo adapter. */
+  ask(input: AskInput, demo?: DemoContext): Promise<PlatformAnswer>;
 }
 
 export const PLATFORM_LABELS: Record<PlatformId, string> = {

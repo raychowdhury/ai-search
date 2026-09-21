@@ -30,6 +30,7 @@ export function AuthForm({ mode, action, next }: { mode: "login" | "signup"; act
           </Field>
           {state.error ? <div className="mb-4"><Notice kind="error">{state.error}</Notice></div> : null}
           <Button type="submit" disabled={pending} className="w-full">{pending ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}</Button>
+          {mode === "login" ? <p className="m-0 mt-3 text-[13px]"><Link href="/forgot-password">Forgot your password?</Link></p> : null}
         </form>
         <p className="m2 mt-6 text-[13px]">
           {mode === "signup" ? (

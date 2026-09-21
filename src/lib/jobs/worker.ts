@@ -16,6 +16,9 @@ import { buildRecommendations, topThree } from "@/lib/recommend/rules";
 import { saveRecommendations, getRecommendation, setVerification } from "@/lib/recommend/store";
 import { logEvent } from "@/lib/events";
 import { runScheduler } from "./scheduler";
+import { logJson, setMeta, getMeta, WORKER_HEARTBEAT_KEY, alert } from "@/lib/observability";
+import { backupDatabase, verifyBackup, pruneBackups } from "@/db/backup";
+import { MAX_ATTEMPTS } from "./queue";
 
 const MAX_CHECK_ATTEMPTS = 3;
 const CHECK_CONCURRENCY = 2;
@@ -62,7 +65,8 @@ async function runChecks(db: Db, runId: string, deps: WorkerDeps, log: (m: strin
   if (!business) return;
   setRunStatus(db, runId, "running");
   const adapterFor = deps.adapterFor ?? getAdapter;
-  const snapshot = {
+  // Only the sample adapter ever sees the business; live adapters get question + location.
+  const demoContext = {
     name: business.name, category: business.category, city: business.city, region: business.region,
     websiteDomain: business.websiteDomain, services: business.services,
   };
@@ -71,7 +75,7 @@ async function runChecks(db: Db, runId: string, deps: WorkerDeps, log: (m: strin
     markCheckRunning(db, check.id);
     const adapter = adapterFor(check.platform);
     try {
-      const answer = await adapter.ask({ question: check.questionText, location: check.locationContext, business: snapshot });
+      const answer = await adapter.ask({ question: check.questionText, location: check.locationContext }, adapter.dataMode === "demo" ? demoContext : undefined);
       const envelope = { provider: answer.raw, citations: answer.citations, ...(answer.demoHints ? { demoHints: answer.demoHints } : {}) };
       const status = markCheckSuccess(db, check.id, { model: answer.model, answerText: answer.answerText, raw: envelope, usage: answer.usage });
       if (status !== "full") log(`check ${check.id}: provider body exceeded the evidence cap; citations kept, body dropped`);
@@ -176,15 +180,19 @@ export async function tick(deps: WorkerDeps = {}): Promise<boolean> {
   const db = deps.db ?? getDb();
   const job = claimNext(db);
   if (!job) return false;
+  const started = Date.now();
   try {
     await processJob(job, deps);
     completeJob(db, job.id);
+    logJson("info", "job.done", { jobId: job.id, type: job.type, ms: Date.now() - started });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    (deps.log ?? console.error)(`[worker] job ${job.id} (${job.type}) failed: ${message}`);
+    (deps.log ?? ((m: string) => logJson("error", "job.error", { message: m })))(`[worker] job ${job.id} (${job.type}) failed: ${message}`);
     failJob(db, job, message, true);
-    if (job.type === "run_checks" || job.type === "analyze_run") {
-      if (job.attempts >= 3) setRunStatus(db, String(job.payload.runId), "failed");
+    const permanent = job.attempts >= MAX_ATTEMPTS;
+    if (permanent) {
+      if (job.type === "run_checks" || job.type === "analyze_run") setRunStatus(db, String(job.payload.runId), "failed");
+      void alert("job.failed_permanently", { jobId: job.id, type: job.type, attempts: job.attempts, message: message.slice(0, 200) });
     }
   }
   return true;
@@ -197,27 +205,76 @@ export async function drain(deps: WorkerDeps = {}, maxJobs = 50): Promise<number
   return n;
 }
 
-const globalKey = "__aivc_worker_started__";
-type G = typeof globalThis & { [globalKey]?: boolean };
+async function dailyBackupIfDue(db: Db): Promise<void> {
+  const dir = process.env.BACKUP_DIR;
+  if (!dir) return;
+  const last = getMeta(db, "backup.lastAt");
+  if (last && Date.now() - new Date(last).getTime() < 24 * 3600 * 1000) return;
+  try {
+    const file = await backupDatabase(db, dir);
+    const report = verifyBackup(file);
+    if (!report.ok) throw new Error(`integrity ${report.integrity}`);
+    setMeta(db, "backup.lastAt", new Date().toISOString());
+    setMeta(db, "backup.lastFile", file);
+    const pruned = pruneBackups(dir);
+    logJson("info", "backup.done", { file, pruned: pruned.length });
+  } catch (err) {
+    void alert("backup.failed", { error: err instanceof Error ? err.message : String(err) });
+  }
+}
 
-/** Starts the in-process polling loop once per process. */
+const globalKey = "__aivc_worker_started__";
+type G = typeof globalThis & { [globalKey]?: { stopping: boolean; inFlight: Promise<unknown> | null } };
+
+/**
+ * Starts the in-process polling loop once per process. Writes a heartbeat every
+ * tick (surfaced by /api/health), runs the scheduler every 10 minutes, takes a
+ * daily backup when BACKUP_DIR is set, and on SIGTERM/SIGINT stops claiming jobs
+ * and waits up to 25 seconds for the in-flight job before exiting.
+ */
 export function startWorker(intervalMs = 1500): void {
   const g = globalThis as G;
   if (g[globalKey]) return;
-  g[globalKey] = true;
+  const state = { stopping: false, inFlight: null as Promise<unknown> | null };
+  g[globalKey] = state;
   let lastSchedule = 0;
+  logJson("info", "worker.start", { pid: process.pid });
+
   const loop = async () => {
+    if (state.stopping) return;
+    let ran = false;
     try {
-      const ran = await tick();
+      const db = getDb();
+      setMeta(db, WORKER_HEARTBEAT_KEY, new Date().toISOString());
+      const p = tick();
+      state.inFlight = p;
+      ran = await p;
+      state.inFlight = null;
       if (Date.now() - lastSchedule > 10 * 60 * 1000) {
         lastSchedule = Date.now();
-        runScheduler(getDb());
+        const started = runScheduler(db, { log: (event, meta) => logJson("info", event, meta) });
+        if (started) logJson("info", "scheduler.tick", { started });
+        await dailyBackupIfDue(db);
       }
-      setTimeout(loop, ran ? 50 : intervalMs);
     } catch (err) {
-      console.error("[worker] loop error", err);
+      state.inFlight = null;
+      logJson("error", "worker.loop_error", { error: err instanceof Error ? err.message : String(err) });
       setTimeout(loop, intervalMs * 4);
+      return;
     }
+    setTimeout(loop, ran ? 50 : intervalMs);
   };
   setTimeout(loop, intervalMs);
+
+  const shutdown = async (signal: string) => {
+    if (state.stopping) return;
+    state.stopping = true;
+    logJson("info", "worker.stopping", { signal });
+    const deadline = new Promise((r) => setTimeout(r, 25_000));
+    await Promise.race([state.inFlight ?? Promise.resolve(), deadline]);
+    logJson("info", "worker.stopped", { signal });
+    process.exit(0);
+  };
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
+  process.once("SIGINT", () => void shutdown("SIGINT"));
 }
