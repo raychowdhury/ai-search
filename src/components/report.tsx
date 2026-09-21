@@ -17,6 +17,7 @@ const REASONS: Record<string, string> = {
   provider_response_invalid: "the platform sent an unexpected response",
   timeout: "the platform took too long",
   gave_up: "did not complete after retries",
+  grounding_quota: "Gemini web grounding is not enabled on this Google project (free tier)",
 };
 
 export function failureReason(code: string | null): string {

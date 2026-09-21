@@ -10,7 +10,7 @@ export function selectExtractor(): ExtractorChoice {
   const options: Array<ExtractorChoice> = [
     isClaudeExtractorConfigured() ? { name: "anthropic", extractor: claudeExtractor, model: process.env.ANALYSIS_MODEL ?? "claude-opus-5" } : null,
     isOpenAiExtractorConfigured() ? { name: "openai", extractor: openaiExtractor, model: process.env.OPENAI_EXTRACTION_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-5.4-mini" } : null,
-    isGeminiExtractorConfigured() ? { name: "gemini", extractor: geminiExtractor, model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash" } : null,
+    isGeminiExtractorConfigured() ? { name: "gemini", extractor: geminiExtractor, model: process.env.GEMINI_MODEL ?? "gemini-3.6-flash" } : null,
   ];
   if (forced) return options.find((o) => o?.name === forced) ?? null;
   return options.find(Boolean) ?? null;

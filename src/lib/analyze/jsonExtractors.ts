@@ -51,7 +51,7 @@ export const geminiExtractor: Extractor = async (answer) => {
   const res = await fetch(process.env.GEMINI_API_URL ?? "https://generativelanguage.googleapis.com/v1beta/interactions", {
     method: "POST",
     headers: { "x-goog-api-key": process.env.GEMINI_API_KEY ?? "", "Content-Type": "application/json" },
-    body: JSON.stringify({ model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash", input: `${EXTRACTION_SYSTEM_PROMPT}${JSON_INSTRUCTION}\n\n<answer>\n${answer}\n</answer>` }),
+    body: JSON.stringify({ model: process.env.GEMINI_MODEL ?? "gemini-3.6-flash", input: `${EXTRACTION_SYSTEM_PROMPT}${JSON_INSTRUCTION}\n\n<answer>\n${answer}\n</answer>` }),
     signal: AbortSignal.timeout(90_000),
   });
   if (!res.ok) throw new Error(`gemini extractor ${res.status}`);

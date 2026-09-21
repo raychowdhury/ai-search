@@ -21,8 +21,8 @@ export function perCheckEstimateUsd(platform: PlatformId): number {
     case "perplexity":
       return 0.035;
     case "gemini":
-      // Free tier: $0 up to 500 grounded requests/day on 2.5 models. Paid: $35 per 1,000 grounded prompts plus tokens.
-      return process.env.GEMINI_PAID === "1" ? 0.04 : 0;
+      // Grounded answers need a billed project (3.x grounding: $14 per 1,000 requests plus tokens; 5,000 free per month on paid tier).
+      return 0.02;
     case "demo":
       return 0;
   }

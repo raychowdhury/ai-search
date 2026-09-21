@@ -21,6 +21,7 @@ const REASONS: Record<string, string> = {
   empty_answer: "no answer text was returned",
   timeout: "the platform took too long",
   gave_up: "did not complete after retries",
+  grounding_quota: "Gemini web grounding not enabled on this Google project",
 };
 
 export function RunProgress({ runId }: { runId: string }) {

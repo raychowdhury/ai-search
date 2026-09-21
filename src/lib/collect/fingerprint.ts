@@ -14,7 +14,7 @@ function configuredModel(id: PlatformId): string {
     case "perplexity":
       return process.env.PERPLEXITY_MODEL ?? "sonar";
     case "gemini":
-      return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+      return process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
     case "demo":
       return "demo-template-v1";
   }

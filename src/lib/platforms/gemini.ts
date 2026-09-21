@@ -6,9 +6,10 @@ import { PlatformError, PLATFORM_LABELS } from "./types";
  * Google Gemini API, interactions endpoint with the google_search tool
  * (shape verified against https://ai.google.dev/gemini-api/docs/google-search on 2026-09-21).
  * The tool has no location parameter, so location context is added to the
- * question text ("... near Springfield, Illinois, US"). Free tier: Gemini 2.5
- * models with grounding up to 500 requests/day; prompts may be used by Google
- * to improve its products on the free tier.
+ * question text. Verified 2026-09-21 on a new free-tier key: plain generation
+ * works, but every grounded request on Gemini 3.x returns a quota error, and
+ * the 2.5 models that had free grounding are closed to new accounts. Grounded
+ * answers therefore need a billed Google project.
  */
 const annotationSchema = z.object({ type: z.string(), url: z.string().optional(), title: z.string().optional() });
 const contentSchema = z.object({ type: z.string(), text: z.string().optional(), annotations: z.array(annotationSchema).optional() });
@@ -22,7 +23,7 @@ export const geminiResponseSchema = z.object({
 });
 
 export function geminiModel(): string {
-  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  return process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 }
 
 /** Location goes into the question because the tool accepts no location parameter. */
@@ -67,7 +68,16 @@ export const geminiAdapter: PlatformAdapter = {
     }
     const text = await res.text();
     if (res.status === 401 || res.status === 403) throw new PlatformError("auth_failed", "Provider rejected the API key", false);
-    if (res.status === 429) throw new PlatformError("rate_limited", "Provider rate limit (free tier is 500 grounded requests per day)", true);
+    if (res.status === 429) {
+      // On a free-tier key this is not a burst limit: Google Search grounding has no free quota on
+      // Gemini 3.x. Retrying will not help, so it is recorded as not retryable with a clear reason.
+      const quota = /exceeded your current quota/i.test(text);
+      throw new PlatformError(
+        quota ? "grounding_quota" : "rate_limited",
+        quota ? "Google Search grounding is not included in this Gemini project's plan (free tier). Enable billing on the Google project to use Gemini answers." : "Provider rate limit",
+        !quota,
+      );
+    }
     if (res.status >= 500) throw new PlatformError("provider_unavailable", `Provider error ${res.status}`, true);
     if (!res.ok) throw new PlatformError("bad_request", `Provider error ${res.status}: ${text.slice(0, 200)}`, false);
     let json: unknown;
